@@ -22,8 +22,6 @@ services:
       dockerfile: Dockerfile.web
     ports:
       - 80
-    envs:
-      - VITE_API_URL
 
 volumes:
   uploads:
