@@ -1,33 +1,29 @@
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
-# Install all dependencies (including dev for build)
+# Install all dependencies (including dev for build and prisma generate)
 COPY package*.json ./
 RUN npm ci
 
-# Copy prisma schema
+# Copy prisma schema and generate client
 COPY prisma ./prisma/
-
-# Generate Prisma client
 RUN npx prisma generate
 
-# Copy app
+# Copy app and build TypeScript
 COPY . .
-
-# Build TypeScript
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine
+FROM node:20-slim
 
 WORKDIR /app
 
 # Install production dependencies only
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
-# Copy built files and prisma schema
+# Copy built files, prisma schema, and generated client from builder
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
