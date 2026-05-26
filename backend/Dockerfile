@@ -2,6 +2,9 @@ FROM node:20-slim AS builder
 
 WORKDIR /app
 
+# Install OpenSSL for Prisma
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 # Install all dependencies (including dev for build and prisma generate)
 COPY package*.json ./
 RUN npm ci
@@ -18,6 +21,9 @@ RUN npm run build
 FROM node:20-slim
 
 WORKDIR /app
+
+# Install OpenSSL for Prisma
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Install production dependencies only
 COPY package*.json ./
