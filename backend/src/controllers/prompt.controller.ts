@@ -9,7 +9,10 @@ import { Category } from '@prisma/client';
 
 const createPromptSchema = z.object({
   content: z.string().min(1, 'El contenido es requerido'),
-  analyzeWithAI: z.boolean().optional().default(true)
+  analyzeWithAI: z.preprocess(
+    (val) => val === 'true' ? true : val === 'false' ? false : val,
+    z.boolean().optional().default(true)
+  )
 });
 
 const updatePromptSchema = z.object({
