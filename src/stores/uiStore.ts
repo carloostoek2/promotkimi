@@ -20,7 +20,8 @@ interface UIState {
   
   openDetailModal: (promptId: string) => void;
   closeDetailModal: () => void;
-  
+  setSelectedPromptId: (promptId: string) => void;
+
   openEditModal: (promptId: string) => void;
   closeEditModal: () => void;
   
@@ -60,10 +61,11 @@ export const useUIStore = create<UIState>((set, get) => ({
     detailModalOpen: true, 
     selectedPromptId: promptId 
   }),
-  closeDetailModal: () => set({ 
-    detailModalOpen: false, 
-    selectedPromptId: null 
+  closeDetailModal: () => set({
+    detailModalOpen: false,
+    selectedPromptId: null
   }),
+  setSelectedPromptId: (promptId: string) => set({ selectedPromptId: promptId }),
 
   // Edit modal
   openEditModal: (promptId: string) => set({ 

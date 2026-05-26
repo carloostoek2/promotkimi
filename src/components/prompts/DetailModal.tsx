@@ -1,21 +1,24 @@
-import { useEffect } from 'react';
-import { X, Heart, Copy, Pencil, Trash2, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { X, Heart, Copy, Pencil, Trash2, Image as ImageIcon, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { usePromptStore } from '@/stores/promptStore';
 import { useUIStore } from '@/stores/uiStore';
 import { CATEGORY_CONFIG } from '@/types';
 
+const SWIPE_THRESHOLD = 50;
+
 export function DetailModal() {
-  const { 
-    selectedPrompt, 
-    fetchPromptById, 
-    toggleFavorite, 
+  const {
+    selectedPrompt,
+    fetchPromptById,
+    toggleFavorite,
     deletePrompt,
-    isLoading 
+    isLoading
   } = usePromptStore();
-  const { 
-    detailModalOpen, 
-    closeDetailModal, 
+  const {
+    detailModalOpen,
+    closeDetailModal,
     selectedPromptId,
+    setSelectedPromptId,
     openEditModal,
     showSuccess,
     showError,
@@ -23,11 +26,88 @@ export function DetailModal() {
     removeToast
   } = useUIStore();
 
+  const prompts = usePromptStore(state => state.prompts);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const [swipeDelta, setSwipeDelta] = useState(0);
+
   useEffect(() => {
     if (detailModalOpen && selectedPromptId) {
       fetchPromptById(selectedPromptId);
     }
   }, [detailModalOpen, selectedPromptId, fetchPromptById]);
+
+  const currentIndex = prompts.findIndex(p => p.id === selectedPromptId);
+  const prevPromptId = currentIndex > 0 ? prompts[currentIndex - 1].id : null;
+  const nextPromptId = currentIndex < prompts.length - 1 ? prompts[currentIndex + 1].id : null;
+
+  const navigateTo = useCallback((promptId: string) => {
+    setSelectedPromptId(promptId);
+  }, [setSelectedPromptId]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStart.current) return;
+    const deltaX = e.touches[0].clientX - touchStart.current.x;
+    const deltaY = e.touches[0].clientY - touchStart.current.y;
+
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      setSwipeDelta(deltaX);
+    } else {
+      setSwipeDelta(0);
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    setSwipeDelta(0);
+
+    if (!start) return;
+
+    const deltaX = e.changedTouches[0].clientX - start.x;
+    const deltaY = e.changedTouches[0].clientY - start.y;
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+
+    if (absX > absY && absX > SWIPE_THRESHOLD) {
+      if (deltaX < 0 && nextPromptId) {
+        navigateTo(nextPromptId);
+      } else if (deltaX > 0 && prevPromptId) {
+        navigateTo(prevPromptId);
+      }
+      return;
+    }
+
+    if (absY > absX && absY > 80) {
+      const contentEl = contentRef.current;
+      if (contentEl) {
+        const atTop = contentEl.scrollTop <= 0;
+        const atBottom = contentEl.scrollTop + contentEl.clientHeight >= contentEl.scrollHeight - 1;
+
+        if ((atTop && deltaY > 0) || (atBottom && deltaY < 0)) {
+          closeDetailModal();
+        }
+      } else {
+        closeDetailModal();
+      }
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowLeft' && prevPromptId) {
+      e.preventDefault();
+      navigateTo(prevPromptId);
+    } else if (e.key === 'ArrowRight' && nextPromptId) {
+      e.preventDefault();
+      navigateTo(nextPromptId);
+    } else if (e.key === 'Escape') {
+      closeDetailModal();
+    }
+  };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -57,13 +137,13 @@ export function DetailModal() {
 
   const handleDelete = async () => {
     if (!selectedPrompt) return;
-    
+
     if (!confirm('¿Estás seguro de que quieres eliminar este prompt?')) {
       return;
     }
 
     const toastId = showLoading('Eliminando prompt...');
-    
+
     try {
       await deletePrompt(selectedPrompt.id);
       removeToast(toastId);
@@ -84,8 +164,46 @@ export function DetailModal() {
     <div
       className="modal-backdrop flex items-end md:items-center justify-center"
       onClick={handleBackdropClick}
+      onKeyDown={handleKeyDown}
     >
-      <div className="modal-content animate-modal-enter max-w-2xl">
+      {/* Prev / Next arrow buttons (desktop) */}
+      {prevPromptId && (
+        <button
+          onClick={(e) => { e.stopPropagation(); navigateTo(prevPromptId); }}
+          className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 z-10
+                     w-11 h-11 rounded-full bg-[#12121A]/90 border border-[#2A2A3A]
+                     items-center justify-center text-[#A1A1AA] hover:text-white
+                     hover:border-[#8B5CF6] hover:bg-[#1A1A24] transition-all
+                     backdrop-blur-sm shadow-lg"
+          aria-label="Prompt anterior"
+        >
+          <ChevronLeft className="w-5 h-5" />
+        </button>
+      )}
+      {nextPromptId && (
+        <button
+          onClick={(e) => { e.stopPropagation(); navigateTo(nextPromptId); }}
+          className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 z-10
+                     w-11 h-11 rounded-full bg-[#12121A]/90 border border-[#2A2A3A]
+                     items-center justify-center text-[#A1A1AA] hover:text-white
+                     hover:border-[#8B5CF6] hover:bg-[#1A1A24] transition-all
+                     backdrop-blur-sm shadow-lg"
+          aria-label="Siguiente prompt"
+        >
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      )}
+
+      <div
+        className="modal-content animate-modal-enter max-w-2xl select-none"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{
+          transform: swipeDelta ? `translateX(${swipeDelta * 0.4}px)` : undefined,
+          transition: swipeDelta ? 'none' : 'transform 250ms ease-out',
+        }}
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[#2A2A3A]">
           <div className="flex items-center gap-2">
@@ -115,6 +233,14 @@ export function DetailModal() {
               <Trash2 className="w-5 h-5" />
             </button>
           </div>
+
+          {/* Nav counter */}
+          {prompts.length > 1 && (
+            <span className="text-xs text-[#52525B] tabular-nums">
+              {currentIndex + 1} / {prompts.length}
+            </span>
+          )}
+
           <button
             onClick={closeDetailModal}
             className="p-2 rounded-lg text-[#71717A] hover:text-white hover:bg-[#1A1A24] transition-colors"
@@ -124,7 +250,11 @@ export function DetailModal() {
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-6 max-h-[70vh] overflow-y-auto">
+        <div
+          ref={contentRef}
+          className="p-4 space-y-6 max-h-[70vh] overflow-y-auto animate-content-fade"
+          key={selectedPromptId}
+        >
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-[#8B5CF6]" />
@@ -138,6 +268,7 @@ export function DetailModal() {
                     src={prompt.imageUrl}
                     alt={prompt.title || 'Prompt'}
                     className="w-full max-h-80 object-cover"
+                    draggable={false}
                   />
                 </div>
               ) : (
