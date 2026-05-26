@@ -15,9 +15,6 @@ services:
       - WEB_URL
     volumes:
       - uploads:/app/uploads
-    depends_on:
-      - postgres
-      - redis
 
   web:
     build:
@@ -28,21 +25,5 @@ services:
     envs:
       - VITE_API_URL
 
-  postgres:
-    image: postgres:15-alpine
-    envs:
-      - POSTGRES_DB
-      - POSTGRES_USER
-      - POSTGRES_PASSWORD
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7-alpine
-    volumes:
-      - redis_data:/data
-
 volumes:
   uploads:
-  postgres_data:
-  redis_data:
