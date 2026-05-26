@@ -61,6 +61,6 @@ export async function onAnalysisCompleted(job: Job<AnalysisJobData>, result: any
   console.log(`[Worker] Job completado:`, result);
 }
 
-export async function onAnalysisFailed(job: Job<AnalysisJobData>, error: Error) {
+export async function onAnalysisFailed(job: Job<AnalysisJobData> | undefined, error: Error) {
   console.error(`[Worker] Job fallido:`, error);
 }

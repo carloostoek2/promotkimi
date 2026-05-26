@@ -4,7 +4,7 @@ import { processAnalysisJob, onAnalysisCompleted, onAnalysisFailed } from '../wo
 
 // Cola de análisis
 export const analysisQueue = new Queue('analysis', {
-  connection: redis,
+  connection: redis as any,
   defaultJobOptions: {
     attempts: 3,
     backoff: {
@@ -23,7 +23,7 @@ export const analysisWorker = new Worker(
     return processAnalysisJob(job);
   },
   {
-    connection: redis,
+    connection: redis as any,
     concurrency: 2
   }
 );
