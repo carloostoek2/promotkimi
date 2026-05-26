@@ -48,7 +48,7 @@ export function PromptCard({ prompt }: PromptCardProps) {
       <div className="relative aspect-[16/10] rounded-xl overflow-hidden mb-4 bg-[#1A1A24]">
         {prompt.thumbnailUrl ? (
           <img
-            src={`http://localhost:3001${prompt.thumbnailUrl}`}
+            src={prompt.thumbnailUrl}
             alt={prompt.title || 'Prompt'}
             className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           />

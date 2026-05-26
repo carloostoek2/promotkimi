@@ -19,10 +19,10 @@ function App() {
     });
   }, [fetchPrompts, showError]);
 
-  // Poll for updates every 5 seconds
+  // Poll for updates every 5 seconds (silent - no loading skeleton)
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchPrompts();
+      fetchPrompts(true);
     }, 5000);
 
     return () => clearInterval(interval);

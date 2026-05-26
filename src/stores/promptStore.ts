@@ -13,7 +13,7 @@ interface PromptState {
   filters: PromptFilters;
   
   // Actions
-  fetchPrompts: () => Promise<void>;
+  fetchPrompts: (silent?: boolean) => Promise<void>;
   fetchPromptById: (id: string) => Promise<void>;
   createPrompt: (input: CreatePromptInput) => Promise<void>;
   updatePrompt: (id: string, input: UpdatePromptInput) => Promise<void>;
@@ -45,15 +45,15 @@ export const usePromptStore = create<PromptState>((set, get) => ({
   filters: defaultFilters,
 
   // Fetch all prompts
-  fetchPrompts: async () => {
-    set({ isLoading: true, error: null });
+  fetchPrompts: async (silent = false) => {
+    if (!silent) set({ isLoading: true, error: null });
     try {
       const prompts = await api.getPrompts(get().filters);
       set({ prompts, isLoading: false });
     } catch (error) {
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Error cargando prompts',
-        isLoading: false 
+        isLoading: false
       });
     }
   },

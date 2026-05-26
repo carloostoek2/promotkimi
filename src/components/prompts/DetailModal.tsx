@@ -135,7 +135,7 @@ export function DetailModal() {
               {prompt.imageUrl ? (
                 <div className="rounded-xl overflow-hidden">
                   <img
-                    src={`http://localhost:3001${prompt.imageUrl}`}
+                    src={prompt.imageUrl}
                     alt={prompt.title || 'Prompt'}
                     className="w-full max-h-80 object-cover"
                   />
