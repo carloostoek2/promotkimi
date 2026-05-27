@@ -40,4 +40,4 @@ RUN mkdir -p uploads
 
 EXPOSE 3001
 
-CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node dist/app.js"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma db push --skip-generate && node dist/app.js"]
