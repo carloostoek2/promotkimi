@@ -25,15 +25,11 @@ WORKDIR /app
 # Install OpenSSL for Prisma
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
-# Install production dependencies only
-COPY package*.json ./
-RUN npm ci --omit=dev
-
-# Copy built files, prisma schema, generated client, and prisma CLI from builder
+# Copy built files, prisma schema, and full node_modules from builder
+# node_modules includes prisma CLI (devDependency) needed for db push at startup
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
+COPY --from=builder /app/node_modules ./node_modules
 
 # Create uploads directory
 RUN mkdir -p uploads
