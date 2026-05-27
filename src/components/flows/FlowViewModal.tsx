@@ -13,7 +13,6 @@ export function FlowViewModal() {
     selectedFlowId,
     openDetailModal,
     openFlowFormModal,
-    closeDetailModal,
   } = useUIStore();
 
   const contentRef = useRef<HTMLDivElement>(null);

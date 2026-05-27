@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { X, GitBranch, Plus, Loader2, ChevronRight } from 'lucide-react';
 import { useFlowStore } from '@/stores/flowStore';
 import { useUIStore } from '@/stores/uiStore';

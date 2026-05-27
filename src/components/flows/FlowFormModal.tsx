@@ -14,7 +14,6 @@ export function FlowFormModal() {
     addNodeToFlow,
     removeNodeFromFlow,
     reorderNodes,
-    isLoading,
   } = useFlowStore();
   const { prompts, fetchPrompts } = usePromptStore();
   const {
