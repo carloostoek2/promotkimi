@@ -9,10 +9,17 @@ async function fetchApi<T>(
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
   const url = `${API_URL}${endpoint}`;
-  
+
+  // Don't set Content-Type for FormData - browser needs to set it with boundary
+  const headers: Record<string, string> = {};
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   const response = await fetch(url, {
     ...options,
     headers: {
+      ...headers,
       ...options.headers,
     },
   });
