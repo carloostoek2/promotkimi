@@ -51,6 +51,7 @@ model Prompt {
   // Relations
   tags            PromptTag[]
   analysisJobs    AnalysisJob[]
+  flowNodes       FlowNode[]
 
   // Indexes
   @@index([category])
@@ -112,4 +113,33 @@ model AnalysisJob {
   @@index([promptId])
   @@index([createdAt])
   @@map("analysis_jobs")
+}
+
+model Flow {
+  id          String     @id @default(uuid())
+  name        String     @db.VarChar(200)
+  description String?    @db.Text
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  nodes       FlowNode[]
+
+  @@index([createdAt])
+  @@map("flows")
+}
+
+model FlowNode {
+  id        String   @id @default(uuid())
+  flowId    String   @map("flow_id")
+  promptId  String   @map("prompt_id")
+  position  Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  flow      Flow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  prompt    Prompt   @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+  @@unique([flowId, position])
+  @@index([flowId])
+  @@index([promptId])
+  @@map("flow_nodes")
 }

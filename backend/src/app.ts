@@ -10,6 +10,7 @@ dotenv.config();
 // Import routes
 import promptRoutes from './routes/prompt.routes';
 import tagRoutes from './routes/tag.routes';
+import flowRoutes from './routes/flow.routes';
 
 // Import middleware
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
@@ -57,6 +58,7 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/prompts', promptRoutes);
 app.use('/api/tags', tagRoutes);
+app.use('/api/flows', flowRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

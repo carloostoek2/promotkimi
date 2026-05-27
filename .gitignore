@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.agents/
+skills-lock.json
+.env
+.env.local
+*.log
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/

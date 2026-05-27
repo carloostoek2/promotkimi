@@ -86,6 +86,51 @@ export interface ModalState {
 
 // ==================== CATEGORY CONFIG ====================
 
+// ==================== FLOW TYPES ====================
+
+export interface Flow {
+  id: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { nodes: number };
+}
+
+export interface FlowNode {
+  id: string;
+  flowId: string;
+  promptId: string;
+  position: number;
+  createdAt: string;
+  prompt?: Prompt;
+}
+
+export interface FlowWithNodes extends Flow {
+  nodes: FlowNode[];
+}
+
+export interface CreateFlowInput {
+  name: string;
+  description?: string;
+}
+
+export interface UpdateFlowInput {
+  name?: string;
+  description?: string;
+}
+
+export interface AddNodeInput {
+  promptId: string;
+  position?: number;
+}
+
+export interface ReorderNodesInput {
+  nodeIds: string[];
+}
+
+// ==================== CATEGORY CONFIG ====================
+
 export const CATEGORY_CONFIG: Record<Category, { label: string; color: string; gradient: string }> = {
   IMAGEN: {
     label: 'Imagen',

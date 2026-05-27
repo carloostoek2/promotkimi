@@ -185,7 +185,47 @@
            flex items-center justify-center
            shadow-lg shadow-[#8B5CF6]/30
            hover:scale-105 active:scale-95
-           transition-transform duration-150 z-40;
+           transition-transform duration-150 z-40
+           select-none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  /* FAB long-press state */
+  .fab-long-press {
+    @apply scale-90 ring-2 ring-[#8B5CF6]/50 ring-offset-2 ring-offset-transparent;
+    transition: all 150ms ease-out;
+  }
+
+  /* Flow node card */
+  .flow-node-card {
+    @apply bg-[#12121A] border border-[#2A2A3A] rounded-xl p-3
+           transition-all duration-250 ease-out
+           active:scale-[0.98] cursor-pointer;
+  }
+
+  /* Flow connector line */
+  .flow-connector {
+    @apply w-0.5 flex-1 mx-auto min-h-[16px];
+  }
+
+  /* Flow position badge */
+  .flow-position-badge {
+    @apply w-7 h-7 rounded-full flex items-center justify-center
+           text-xs font-bold text-white bg-[#8B5CF6]
+           flex-shrink-0;
+  }
+
+  /* Flow card in list */
+  .flow-card {
+    @apply bg-[#12121A] border border-[#2A2A3A] rounded-xl p-4
+           transition-all duration-250 ease-out
+           active:scale-[0.98] cursor-pointer;
+  }
+
+  /* Bottom sheet pull handle */
+  .sheet-handle {
+    @apply w-10 h-1 rounded-full bg-[#3A3A4A] mx-auto mb-3;
   }
 }
 
@@ -238,6 +278,16 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
   }
+
+  @keyframes flow-line-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  @keyframes long-press-ring {
+    0% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.5); }
+    100% { box-shadow: 0 0 0 12px rgba(139, 92, 246, 0); }
+  }
   
   .animate-shimmer {
     animation: shimmer 1.5s infinite;
@@ -257,6 +307,18 @@
 
   .animate-pulse-glow {
     animation: pulse-glow 2s infinite;
+  }
+
+  .animate-flow-line-pulse {
+    animation: flow-line-pulse 2s ease-in-out infinite;
+  }
+
+  .animate-long-press-ring {
+    animation: long-press-ring 0.8s ease-out;
+  }
+
+  .animate-fade-in {
+    animation: content-fade 300ms ease-out both;
   }
   
   /* Line clamp utilities */

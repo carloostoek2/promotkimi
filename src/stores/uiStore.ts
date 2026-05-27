@@ -7,31 +7,45 @@ interface UIState {
   detailModalOpen: boolean;
   editModalOpen: boolean;
   selectedPromptId: string | null;
-  
+
+  // Flow modals
+  flowListModalOpen: boolean;
+  flowViewModalOpen: boolean;
+  flowFormModalOpen: boolean;
+  selectedFlowId: string | null;
+
   // Toasts
   toasts: Toast[];
-  
+
   // Filter panel
   filterPanelOpen: boolean;
-  
+
   // Actions
   openCreateModal: () => void;
   closeCreateModal: () => void;
-  
+
   openDetailModal: (promptId: string) => void;
   closeDetailModal: () => void;
   setSelectedPromptId: (promptId: string) => void;
 
   openEditModal: (promptId: string) => void;
   closeEditModal: () => void;
-  
+
+  // Flow modal actions
+  openFlowListModal: () => void;
+  closeFlowListModal: () => void;
+  openFlowViewModal: (flowId: string) => void;
+  closeFlowViewModal: () => void;
+  openFlowFormModal: (flowId?: string) => void;
+  closeFlowFormModal: () => void;
+
   toggleFilterPanel: () => void;
   closeFilterPanel: () => void;
-  
+
   // Toast actions
   addToast: (toast: Omit<Toast, 'id'>) => string;
   removeToast: (id: string) => void;
-  
+
   // Helper toast methods
   showSuccess: (message: string) => void;
   showError: (message: string) => void;
@@ -49,6 +63,10 @@ export const useUIStore = create<UIState>((set, get) => ({
   detailModalOpen: false,
   editModalOpen: false,
   selectedPromptId: null,
+  flowListModalOpen: false,
+  flowViewModalOpen: false,
+  flowFormModalOpen: false,
+  selectedFlowId: null,
   toasts: [],
   filterPanelOpen: false,
 
@@ -72,9 +90,31 @@ export const useUIStore = create<UIState>((set, get) => ({
     editModalOpen: true, 
     selectedPromptId: promptId 
   }),
-  closeEditModal: () => set({ 
-    editModalOpen: false, 
-    selectedPromptId: null 
+  closeEditModal: () => set({
+    editModalOpen: false,
+    selectedPromptId: null
+  }),
+
+  // Flow modals
+  openFlowListModal: () => set({ flowListModalOpen: true }),
+  closeFlowListModal: () => set({ flowListModalOpen: false }),
+
+  openFlowViewModal: (flowId: string) => set({
+    flowViewModalOpen: true,
+    selectedFlowId: flowId,
+  }),
+  closeFlowViewModal: () => set({
+    flowViewModalOpen: false,
+    selectedFlowId: null,
+  }),
+
+  openFlowFormModal: (flowId?: string) => set({
+    flowFormModalOpen: true,
+    selectedFlowId: flowId || null,
+  }),
+  closeFlowFormModal: () => set({
+    flowFormModalOpen: false,
+    selectedFlowId: null,
   }),
 
   // Filter panel

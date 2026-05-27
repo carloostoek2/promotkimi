@@ -3,6 +3,9 @@ import { Header } from '@/components/Header';
 import { PromptGrid } from '@/components/prompts/PromptGrid';
 import { CreateModal } from '@/components/prompts/CreateModal';
 import { DetailModal } from '@/components/prompts/DetailModal';
+import { FlowListModal } from '@/components/flows/FlowListModal';
+import { FlowViewModal } from '@/components/flows/FlowViewModal';
+import { FlowFormModal } from '@/components/flows/FlowFormModal';
 import { ToastContainer } from '@/components/ToastContainer';
 import { FAB } from '@/components/FAB';
 import { usePromptStore } from '@/stores/promptStore';
@@ -56,6 +59,9 @@ function App() {
       {/* Modals */}
       <CreateModal />
       <DetailModal />
+      <FlowListModal />
+      <FlowViewModal />
+      <FlowFormModal />
 
       {/* Toasts */}
       <ToastContainer />

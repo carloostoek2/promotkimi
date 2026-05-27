@@ -80,3 +80,24 @@ export interface TagSuggestion {
   normalizedName: string;
   usageCount: number;
 }
+
+// ==================== FLOW TYPES ====================
+
+export interface CreateFlowInput {
+  name: string;
+  description?: string;
+}
+
+export interface UpdateFlowInput {
+  name?: string;
+  description?: string;
+}
+
+export interface AddNodeInput {
+  promptId: string;
+  position?: number;
+}
+
+export interface ReorderNodesInput {
+  nodeIds: string[];
+}

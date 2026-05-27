@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { X, Heart, Copy, Pencil, Trash2, Image as ImageIcon, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Heart, Copy, Pencil, Trash2, Image as ImageIcon, Loader2, ChevronLeft, ChevronRight, GitBranch } from 'lucide-react';
 import { usePromptStore } from '@/stores/promptStore';
 import { useUIStore } from '@/stores/uiStore';
 import { CATEGORY_CONFIG } from '@/types';
+import type { Flow } from '@/types';
+import * as api from '@/services/api';
 
 const SWIPE_THRESHOLD = 50;
 
@@ -30,10 +32,15 @@ export function DetailModal() {
   const contentRef = useRef<HTMLDivElement>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const [swipeDelta, setSwipeDelta] = useState(0);
+  const [promptFlows, setPromptFlows] = useState<Flow[]>([]);
+  const { openFlowViewModal } = useUIStore();
 
   useEffect(() => {
     if (detailModalOpen && selectedPromptId) {
       fetchPromptById(selectedPromptId);
+      api.getFlows(selectedPromptId).then(setPromptFlows).catch(() => setPromptFlows([]));
+    } else {
+      setPromptFlows([]);
     }
   }, [detailModalOpen, selectedPromptId, fetchPromptById]);
 
@@ -344,6 +351,36 @@ export function DetailModal() {
                       <span key={tag.id} className="tag-pill">
                         #{tag.name}
                       </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Flows this prompt belongs to */}
+              {promptFlows.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-[#71717A] uppercase tracking-wider">
+                    Flujos
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {promptFlows.map(flow => (
+                      <button
+                        key={flow.id}
+                        onClick={() => {
+                          closeDetailModal();
+                          setTimeout(() => openFlowViewModal(flow.id), 150);
+                        }}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg
+                                   bg-[#1A1A24] border border-[#2A2A3A]
+                                   text-[#A1A1AA] hover:text-white hover:border-[#8B5CF6]
+                                   transition-all text-sm"
+                      >
+                        <GitBranch className="w-4 h-4 text-[#8B5CF6]" />
+                        <span>{flow.name}</span>
+                        <span className="text-xs text-[#52525B] tabular-nums">
+                          {flow._count?.nodes ?? '?'}
+                        </span>
+                      </button>
                     ))}
                   </div>
                 </div>

@@ -1,4 +1,4 @@
-import type { Prompt, CreatePromptInput, UpdatePromptInput, PromptFilters, ApiResponse, Tag } from '@/types';
+import type { Prompt, CreatePromptInput, UpdatePromptInput, PromptFilters, ApiResponse, Tag, Flow, FlowWithNodes, CreateFlowInput, UpdateFlowInput, AddNodeInput, ReorderNodesInput } from '@/types';
 
 const API_URL = import.meta.env.PROD ? '' : 'http://localhost:3001';
 
@@ -114,6 +114,70 @@ export async function getTags(): Promise<Tag[]> {
 export async function getTagSuggestions(query: string, limit = 10): Promise<Tag[]> {
   const response = await fetchApi<Tag[]>(`/api/tags/suggest?q=${encodeURIComponent(query)}&limit=${limit}`);
   return response.data || [];
+}
+
+// ==================== HEALTH CHECK ====================
+
+// ==================== FLOW API ====================
+
+export async function getFlows(promptId?: string): Promise<Flow[]> {
+  const params = promptId ? `?promptId=${encodeURIComponent(promptId)}` : '';
+  const response = await fetchApi<Flow[]>(`/api/flows${params}`);
+  return response.data || [];
+}
+
+export async function getFlowById(id: string): Promise<FlowWithNodes> {
+  const response = await fetchApi<FlowWithNodes>(`/api/flows/${id}`);
+  if (!response.data) throw new Error('Flujo no encontrado');
+  return response.data;
+}
+
+export async function createFlow(input: CreateFlowInput): Promise<Flow> {
+  const response = await fetchApi<Flow>('/api/flows', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.data) throw new Error('Error creando flujo');
+  return response.data;
+}
+
+export async function updateFlow(id: string, input: UpdateFlowInput): Promise<Flow> {
+  const response = await fetchApi<Flow>(`/api/flows/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.data) throw new Error('Error actualizando flujo');
+  return response.data;
+}
+
+export async function deleteFlow(id: string): Promise<void> {
+  await fetchApi<void>(`/api/flows/${id}`, { method: 'DELETE' });
+}
+
+export async function addNodeToFlow(flowId: string, input: AddNodeInput): Promise<FlowWithNodes> {
+  const response = await fetchApi<FlowWithNodes>(`/api/flows/${flowId}/nodes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.data) throw new Error('Error agregando nodo');
+  return response.data;
+}
+
+export async function reorderNodes(flowId: string, input: ReorderNodesInput): Promise<FlowWithNodes> {
+  const response = await fetchApi<FlowWithNodes>(`/api/flows/${flowId}/nodes/reorder`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.data) throw new Error('Error reordenando nodos');
+  return response.data;
+}
+
+export async function removeNodeFromFlow(flowId: string, nodeId: string): Promise<void> {
+  await fetchApi<void>(`/api/flows/${flowId}/nodes/${nodeId}`, { method: 'DELETE' });
 }
 
 // ==================== HEALTH CHECK ====================
