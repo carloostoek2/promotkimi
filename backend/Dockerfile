@@ -29,14 +29,15 @@ RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# Copy built files, prisma schema, and generated client from builder
+# Copy built files, prisma schema, generated client, and prisma CLI from builder
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
 
 # Create uploads directory
 RUN mkdir -p uploads
 
 EXPOSE 3001
 
-CMD ["node", "dist/app.js"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node dist/app.js"]
