@@ -2,7 +2,7 @@
 sketch: 001
 name: view-mode-toggle
 question: "¿Cómo se comparan visualmente las dos vistas (feed vs mosaico) y dónde vive el toggle?"
-winner: null
+winner: "B (Mosaico 2-col, 1:1, segmented control)"
 tags: [layout, toggle, grid, mosaic]
 ---
 

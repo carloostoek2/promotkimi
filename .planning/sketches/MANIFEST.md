@@ -12,4 +12,4 @@ PromptVault necesita un toggle entre dos modos de visualización de prompts: (1)
 
 | # | Name | Design Question | Winner | Tags |
 |---|------|----------------|--------|------|
-| 001 | view-mode-toggle | ¿Cómo se comparan visualmente Feed vs Mosaico 2-col vs Mosaico 3-col, y dónde/ cómo vive el toggle? | null | [layout, toggle, grid] |
+| 001 | view-mode-toggle | ¿Cómo se comparan visualmente Feed vs Mosaico 2-col vs Mosaico 3-col, y dónde/ cómo vive el toggle? | **B (Mosaico 2-col, 1:1, segmented control)** | [layout, toggle, grid, mosaic] |
