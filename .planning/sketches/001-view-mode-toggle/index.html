@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sketch 001 — View Mode Toggle | PromptVault</title>
+<link rel="stylesheet" href="../themes/default.css">
+<style>
+  /* Variant tabs */
+  #variant-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+    background: var(--color-surface); border-bottom: 1px solid var(--color-border);
+    padding: 10px 16px; display: flex; gap: 8px; align-items: center;
+    font-family: var(--font-sans); font-size: 13px;
+  }
+  .variant-tab {
+    background: transparent; border: 1px solid var(--color-border);
+    color: var(--color-text-muted); padding: 6px 14px;
+    border-radius: var(--radius-md); cursor: pointer; font-weight: 500;
+    transition: all 0.15s ease;
+  }
+  .variant-tab:hover { color: var(--color-text); border-color: var(--color-border-strong); }
+  .variant-tab.active {
+    background: var(--color-primary-soft); border-color: var(--color-primary);
+    color: var(--color-primary);
+  }
+  .variant-tab .star { color: #F59E0B; margin-left: 4px; }
+  #variant-nav .spacer { flex: 1; font-size: 12px; color: var(--color-text-dim); }
+
+  body { padding-top: 56px; }
+
+  /* App header */
+  .app-header {
+    position: sticky; top: 56px; z-index: 30;
+    background: rgba(10, 10, 15, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .app-header-inner {
+    max-width: 1280px; margin: 0 auto; padding: 16px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+    font-weight: 600;
+  }
+  .logo-mark {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--gradient-brand);
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 700; font-size: 14px;
+  }
+  .search-box {
+    flex: 1; position: relative;
+  }
+  .search-box input {
+    width: 100%; padding: 10px 14px 10px 38px;
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg); color: var(--color-text);
+    font-size: 14px; font-family: inherit;
+  }
+  .search-box svg {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    color: var(--color-text-dim);
+  }
+  .icon-btn {
+    width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg); color: var(--color-text-muted); cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .icon-btn:hover { color: var(--color-text); border-color: var(--color-border-strong); }
+
+  /* ★ View-mode toggle (the new control) */
+  .view-toggle {
+    display: flex; padding: 3px; gap: 2px;
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+  .view-toggle button {
+    width: 34px; height: 32px; display: flex; align-items: center; justify-content: center;
+    background: transparent; border: none; border-radius: 7px;
+    color: var(--color-text-dim); cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .view-toggle button:hover { color: var(--color-text); }
+  .view-toggle button.active {
+    background: var(--color-primary-soft); color: var(--color-primary);
+  }
+  .view-toggle button svg { width: 16px; height: 16px; }
+
+  .new-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 0 16px; height: 40px;
+    background: var(--gradient-brand); color: white; font-weight: 500;
+    border: none; border-radius: var(--radius-lg); cursor: pointer; font-size: 14px;
+  }
+
+  /* Stats bar */
+  .stats {
+    max-width: 1280px; margin: 0 auto; padding: 16px 16px 0;
+    font-size: 13px; color: var(--color-text-dim);
+  }
+
+  /* Grid container */
+  .grid {
+    max-width: 1280px; margin: 0 auto; padding: 16px;
+    display: grid; gap: 16px;
+  }
+
+  /* ★ FEED view (1 col) */
+  .grid.feed { grid-template-columns: 1fr; max-width: 720px; gap: 20px; }
+  /* ★ MOSAIC 2-col */
+  .grid.mosaic-2 { grid-template-columns: repeat(2, 1fr); }
+  /* ★ MOSAIC 3-col */
+  .grid.mosaic-3 { grid-template-columns: repeat(2, 1fr); }
+  @media (min-width: 1024px) {
+    .grid.mosaic-3 { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  /* ====== FEED CARD (current card style, vertical layout) ====== */
+  .card-feed {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-2xl);
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .card-feed:hover { border-color: var(--color-border-strong); }
+  .card-feed .image {
+    position: relative; aspect-ratio: 16/10;
+    border-radius: var(--radius-xl); overflow: hidden;
+    background: var(--color-surface-2); margin-bottom: 16px;
+  }
+  .card-feed .image img {
+    width: 100%; height: 100%; object-fit: cover;
+    transition: transform 0.3s ease;
+  }
+  .card-feed:hover .image img { transform: scale(1.04); }
+  .card-feed .badge {
+    position: absolute; top: 10px; left: 10px;
+    padding: 4px 10px; border-radius: var(--radius-full);
+    font-size: 11px; font-weight: 600; color: white;
+    backdrop-filter: blur(8px);
+  }
+  .card-feed h3 { font-size: 17px; font-weight: 600; margin: 0 0 8px; line-height: 1.3; }
+  .card-feed .preview {
+    font-family: var(--font-mono); font-size: 13px; line-height: 1.55;
+    color: var(--color-text-muted); margin: 0 0 12px;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card-feed .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .tag-pill {
+    padding: 3px 10px; font-size: 11px; font-weight: 500;
+    background: var(--color-surface-2); color: var(--color-text-muted);
+    border-radius: var(--radius-full);
+  }
+  .card-feed .footer {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-top: 12px; border-top: 1px solid var(--color-border);
+  }
+  .card-feed .actions { display: flex; gap: 4px; }
+  .action-btn {
+    width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+    background: transparent; border: none; border-radius: var(--radius-md);
+    color: var(--color-text-dim); cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .action-btn:hover { color: var(--color-text); background: var(--color-surface-2); }
+  .action-btn.fav.active { color: var(--color-primary); background: var(--color-primary-soft); }
+  .date { font-size: 12px; color: var(--color-text-dim); }
+
+  /* ====== MOSAIC CARD (image-dominant, minimal text overlay) ====== */
+  .card-mosaic {
+    position: relative; overflow: hidden;
+    border-radius: var(--radius-2xl);
+    cursor: pointer;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    aspect-ratio: 1 / 1;
+    transition: all 0.2s ease;
+  }
+  .card-mosaic:hover { border-color: var(--color-border-strong); transform: translateY(-2px); }
+  .card-mosaic img {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+  }
+  .card-mosaic:hover img { transform: scale(1.06); }
+  .card-mosaic .gradient {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 0%, transparent 40%, rgba(0,0,0,0.85) 100%);
+    opacity: 0.95; transition: opacity 0.2s ease;
+  }
+  .card-mosaic:hover .gradient { opacity: 1; }
+  .card-mosaic .badge {
+    position: absolute; top: 10px; left: 10px;
+    padding: 4px 10px; border-radius: var(--radius-full);
+    font-size: 11px; font-weight: 600; color: white;
+    backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.4);
+  }
+  .card-mosaic .fav {
+    position: absolute; top: 8px; right: 8px;
+    width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-full);
+    background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(8px);
+    border: none; cursor: pointer; color: white; z-index: 2;
+    opacity: 0; transition: opacity 0.2s ease;
+  }
+  .card-mosaic:hover .fav { opacity: 1; }
+  .card-mosaic .fav.active { opacity: 1; color: var(--color-primary); }
+  .card-mosaic .info {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 14px;
+    color: white; z-index: 1;
+  }
+  .card-mosaic .title {
+    font-size: 14px; font-weight: 600; line-height: 1.3;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+  .card-mosaic .meta {
+    display: flex; align-items: center; gap: 8px; margin-top: 6px;
+    font-size: 11px; color: rgba(255,255,255,0.75);
+  }
+
+  /* ★ Category gradient backgrounds for badges */
+  .cat-imagen { background: linear-gradient(90deg, var(--cat-imagen-from), var(--cat-imagen-to)); }
+  .cat-video { background: linear-gradient(90deg, var(--cat-video-from), var(--cat-video-to)); }
+  .cat-texto { background: linear-gradient(90deg, var(--cat-texto-from), var(--cat-texto-to)); }
+  .cat-audio { background: linear-gradient(90deg, var(--cat-audio-from), var(--cat-audio-to)); }
+
+  /* Sketch toolbar */
+  #sketch-tools {
+    position: fixed; bottom: 12px; right: 12px; z-index: 9999;
+    font-family: system-ui; font-size: 12px;
+    background: rgba(0,0,0,0.85); color: white;
+    padding: 8px 12px; border-radius: 8px;
+    opacity: 0.5; transition: opacity 0.2s;
+    display: flex; gap: 12px; align-items: center;
+  }
+  #sketch-tools:hover { opacity: 1; }
+  #sketch-tools select {
+    background: #1a1a1a; color: white; border: 1px solid #333;
+    border-radius: 4px; padding: 2px 6px; font-size: 12px;
+  }
+
+  .variant { display: none; }
+  .variant.active { display: block; }
+
+  /* Annotation */
+  .note {
+    background: rgba(139, 92, 246, 0.12); border: 1px dashed var(--color-primary);
+    color: var(--color-text-muted); padding: 8px 12px; border-radius: var(--radius-md);
+    font-size: 12px; margin: 12px 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- Variant tabs -->
+<nav id="variant-nav">
+  <strong style="color: var(--color-text); margin-right: 4px;">Sketch 001</strong>
+  <button class="variant-tab active" onclick="showVariant('a')">A · Feed (1 col)</button>
+  <button class="variant-tab" onclick="showVariant('b')">B · Mosaico 2-col</button>
+  <button class="variant-tab" onclick="showVariant('c')">C · Mosaico 3-col</button>
+  <span class="spacer">Click cualquier toggle en el header para ver el cambio en vivo</span>
+</nav>
+
+<!-- ============================================================ -->
+<!-- VARIANT A: FEED (1 col) -->
+<!-- ============================================================ -->
+<div id="variant-a" class="variant active">
+  <div class="app-header">
+    <div class="app-header-inner">
+      <div class="logo">
+        <div class="logo-mark">P</div>
+        <span style="font-size: 15px;">PromptVault</span>
+      </div>
+      <div class="search-box">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" placeholder="Buscar prompts...">
+      </div>
+
+      <!-- ★ VIEW-MODE TOGGLE -->
+      <div class="view-toggle" data-variant="a">
+        <button data-mode="feed" class="active" title="Vista feed (1 col)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+        </button>
+        <button data-mode="mosaic" title="Vista mosaico (2-3 col)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        </button>
+      </div>
+
+      <button class="icon-btn" title="Filtros">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+      </button>
+      <button class="new-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Nuevo
+      </button>
+    </div>
+  </div>
+
+  <div class="stats">8 prompts · 2 analizando</div>
+  <div class="note" style="max-width: 720px; margin: 12px auto 0; padding: 0 16px;">▼ Tarjeta vertical con imagen 16:10, badge categoría, título, preview 3 líneas, tags, acciones. Container 720px para legibilidad. Click el toggle de mosaico ↑ para ver el cambio en vivo.</div>
+
+  <div class="grid feed">
+    <!-- Card 1 -->
+    <div class="card-feed">
+      <div class="image">
+        <img src="https://picsum.photos/seed/promptvault-1/800/500" alt="">
+        <div class="badge cat-imagen">Imagen</div>
+      </div>
+      <h3>Retrato cyberpunk con iluminación neón</h3>
+      <p class="preview">A cinematic close-up portrait of a young woman with neon-lit cybernetic implants, soft purple and cyan rim lighting, shallow depth of field, shot on Sony A7IV, 85mm f/1.4...</p>
+      <div class="tags">
+        <span class="tag-pill">#cyberpunk</span>
+        <span class="tag-pill">#retrato</span>
+        <span class="tag-pill">#neon</span>
+      </div>
+      <div class="footer">
+        <div class="actions">
+          <button class="action-btn fav active"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+          <button class="action-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+        </div>
+        <span class="date">2 jun</span>
+      </div>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="card-feed">
+      <div class="image">
+        <img src="https://picsum.photos/seed/promptvault-2/800/500" alt="">
+        <div class="badge cat-video">Video</div>
+      </div>
+      <h3>Timelapse de ciudad futurista</h3>
+      <p class="preview">Hyper-lapse of a futuristic megacity at golden hour, drones flying between holographic billboards, smooth camera dolly movement, 4K cinematic, Blade Runner aesthetic...</p>
+      <div class="tags">
+        <span class="tag-pill">#timelapse</span>
+        <span class="tag-pill">#futurista</span>
+      </div>
+      <div class="footer">
+        <div class="actions">
+          <button class="action-btn fav"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+          <button class="action-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+        </div>
+        <span class="date">1 jun</span>
+      </div>
+    </div>
+
+    <!-- Card 3 (no image, texto) -->
+    <div class="card-feed">
+      <div class="image">
+        <img src="https://picsum.photos/seed/promptvault-3/800/500" alt="">
+        <div class="badge cat-texto">Texto</div>
+      </div>
+      <h3>Email frío a inversor Serie A</h3>
+      <p class="preview">Asunto: 3 minutos — por qué nuestra retención supera el 92%. Cuerpo: Hola [nombre], cofundador de [empresa] aquí. Levantamos $1.2M el año pasado, retenemos 92% a 12 meses (3x el benchmark SaaS B2B)...</p>
+      <div class="tags">
+        <span class="tag-pill">#copywriting</span>
+        <span class="tag-pill">#b2b</span>
+        <span class="tag-pill">#cold-outreach</span>
+      </div>
+      <div class="footer">
+        <div class="actions">
+          <button class="action-btn fav"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+          <button class="action-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+        </div>
+        <span class="date">31 may</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- VARIANT B: MOSAIC 2-COL -->
+<!-- ============================================================ -->
+<div id="variant-b" class="variant">
+  <div class="app-header">
+    <div class="app-header-inner">
+      <div class="logo">
+        <div class="logo-mark">P</div>
+        <span style="font-size: 15px;">PromptVault</span>
+      </div>
+      <div class="search-box">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" placeholder="Buscar prompts...">
+      </div>
+
+      <div class="view-toggle" data-variant="b">
+        <button data-mode="feed" title="Vista feed (1 col)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+        </button>
+        <button data-mode="mosaic" class="active" title="Vista mosaico (2-3 col)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        </button>
+      </div>
+
+      <button class="icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></button>
+      <button class="new-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nuevo</button>
+    </div>
+  </div>
+
+  <div class="stats">8 prompts · 2 analizando · <span style="color: var(--color-primary);">Vista mosaico</span></div>
+  <div class="note" style="max-width: 1280px; margin: 12px auto 0; padding: 0 16px;">▼ Imagen cuadrada full-bleed, badge categoría superpuesto, título y fecha sobre gradiente. Hover: scale + reveal fav button.</div>
+
+  <div class="grid mosaic-2">
+    <div class="card-mosaic">
+      <img src="https://picsum.photos/seed/promptvault-1/600/600" alt="">
+      <div class="gradient"></div>
+      <span class="badge cat-imagen">Imagen</span>
+      <button class="fav active"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+      <div class="info">
+        <div class="title">Retrato cyberpunk con iluminación neón</div>
+        <div class="meta">2 jun · #cyberpunk</div>
+      </div>
+    </div>
+
+    <div class="card-mosaic">
+      <img src="https://picsum.photos/seed/promptvault-2/600/600" alt="">
+      <div class="gradient"></div>
+      <span class="badge cat-video">Video</span>
+      <button class="fav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+      <div class="info">
+        <div class="title">Timelapse de ciudad futurista</div>
+        <div class="meta">1 jun · #timelapse</div>
+      </div>
+    </div>
+
+    <div class="card-mosaic">
+      <img src="https://picsum.photos/seed/promptvault-3/600/600" alt="">
+      <div class="gradient"></div>
+      <span class="badge cat-texto">Texto</span>
+      <button class="fav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+      <div class="info">
+        <div class="title">Email frío a inversor Serie A</div>
+        <div class="meta">31 may · #copywriting</div>
+      </div>
+    </div>
+
+    <div class="card-mosaic">
+      <img src="https://picsum.photos/seed/promptvault-4/600/600" alt="">
+      <div class="gradient"></div>
+      <span class="badge cat-audio">Audio</span>
+      <button class="fav active"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+      <div class="info">
+        <div class="title">Voz narrativa ASMR para podcast</div>
+        <div class="meta">30 may · #voz</div>
+      </div>
+    </div>
+
+    <div class="card-mosaic">
+      <img src="https://picsum.photos/seed/promptvault-5/600/600" alt="">
+      <div class="gradient"></div>
+      <span class="badge cat-imagen">Imagen</span>
+      <button class="fav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+      <div class="info">
+        <div class="title">Paisaje isométrico estilo Ghibli</div>
+        <div class="meta">28 may · #ilustración</div>
+      </div>
+    </div>
+
+    <div class="card-mosaic">
+      <img src="https://picsum.photos/seed/promptvault-6/600/600" alt="">
+      <div class="gradient"></div>
+      <span class="badge cat-video">Video</span>
+      <button class="fav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+      <div class="info">
+        <div class="title">Macro shot de gotas de agua</div>
+        <div class="meta">25 may · #macro</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- VARIANT C: MOSAIC 3-COL -->
+<!-- ============================================================ -->
+<div id="variant-c" class="variant">
+  <div class="app-header">
+    <div class="app-header-inner">
+      <div class="logo">
+        <div class="logo-mark">P</div>
+        <span style="font-size: 15px;">PromptVault</span>
+      </div>
+      <div class="search-box">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" placeholder="Buscar prompts...">
+      </div>
+
+      <div class="view-toggle" data-variant="c">
+        <button data-mode="feed" title="Vista feed (1 col)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+        </button>
+        <button data-mode="mosaic" class="active" title="Vista mosaico (2-3 col)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        </button>
+      </div>
+
+      <button class="icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></button>
+      <button class="new-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nuevo</button>
+    </div>
+  </div>
+
+  <div class="stats">8 prompts · 2 analizando · <span style="color: var(--color-primary);">Vista mosaico 3-col</span></div>
+  <div class="note" style="max-width: 1280px; margin: 12px auto 0; padding: 0 16px;">▼ Misma tarjeta cuadrada pero a 3 columnas en pantallas grandes — máxima densidad de thumbnails. En móvil colapsa a 2 col para no perder legibilidad.</div>
+
+  <div class="grid mosaic-3">
+    <div class="card-mosaic">
+      <img src="https://picsum.photos/seed/promptvault-1/600/600" alt="">
+      <div class="gradient"></div>
+      <span class="badge cat-imagen">Imagen</span>
+      <button class="fav active"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+      <div class="info">
+        <div class="title">Retrato cyberpunk neón</div>
+        <div class="meta">2 jun</div>
+      </div>
+    </div>
+
+    <div class="card-mosaic">
+      <img src="https://picsum.photos/seed/promptvault-2/600/600" alt="">
+      <div class="gradient"></div>
+      <span class="badge cat-video">Video</span>
+      <button class="fav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+      <div class="info">
+        <div class="title">Timelapse futurista</div>
+        <div class="meta">1 jun</div>
+      </div>
+    </div>
+
+    <div class="card-mosaic">
+      <img src="https://picsum.photos/seed/promptvault-3/600/600" alt="">
+      <div class="gradient"></div>
+      <span class="badge cat-texto">Texto</span>
+      <button class="fav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+      <div class="info">
+        <div class="title">Email frío a inversor</div>
+        <div class="meta">31 may</div>
+      </div>
+    </div>
+
+    <div class="card-mosaic">
+      <img src="https://picsum.photos/seed/promptvault-4/600/600" alt="">
+      <div class="gradient"></div>
+      <span class="badge cat-audio">Audio</span>
+      <button class="fav active"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+      <div class="info">
+        <div class="title">Voz ASMR para podcast</div>
+        <div class="meta">30 may</div>
+      </div>
+    </div>
+
+    <div class="card-mosaic">
+      <img src="https://picsum.photos/seed/promptvault-5/600/600" alt="">
+      <div class="gradient"></div>
+      <span class="badge cat-imagen">Imagen</span>
+      <button class="fav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+      <div class="info">
+        <div class="title">Paisaje Ghibli</div>
+        <div class="meta">28 may</div>
+      </div>
+    </div>
+
+    <div class="card-mosaic">
+      <img src="https://picsum.photos/seed/promptvault-6/600/600" alt="">
+      <div class="gradient"></div>
+      <span class="badge cat-video">Video</span>
+      <button class="fav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+      <div class="info">
+        <div class="title">Macro gotas de agua</div>
+        <div class="meta">25 may</div>
+      </div>
+    </div>
+
+    <div class="card-mosaic">
+      <img src="https://picsum.photos/seed/promptvault-7/600/600" alt="">
+      <div class="gradient"></div>
+      <span class="badge cat-imagen">Imagen</span>
+      <button class="fav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+      <div class="info">
+        <div class="title">Logo minimalista tech</div>
+        <div class="meta">22 may</div>
+      </div>
+    </div>
+
+    <div class="card-mosaic">
+      <img src="https://picsum.photos/seed/promptvault-8/600/600" alt="">
+      <div class="gradient"></div>
+      <span class="badge cat-texto">Texto</span>
+      <button class="fav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+      <div class="info">
+        <div class="title">Tweet thread viral</div>
+        <div class="meta">20 may</div>
+      </div>
+    </div>
+
+    <div class="card-mosaic">
+      <img src="https://picsum.photos/seed/promptvault-9/600/600" alt="">
+      <div class="gradient"></div>
+      <span class="badge cat-imagen">Imagen</span>
+      <button class="fav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></button>
+      <div class="info">
+        <div class="title">Render arquitectónico</div>
+        <div class="meta">18 may</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sketch toolbar -->
+<div id="sketch-tools">
+  <span>Sketch 001</span>
+  <select onchange="document.querySelector('link[href*=themes]').href='../themes/'+this.value+'.css'">
+    <option value="default">default</option>
+  </select>
+  <span>·</span>
+  <span style="opacity: 0.7;">tabs A · B · C</span>
+</div>
+
+<script>
+  // Variant switching
+  function showVariant(id) {
+    document.querySelectorAll('.variant').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.variant-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('variant-' + id).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  // View-mode toggle (interactive within each variant)
+  document.querySelectorAll('.view-toggle').forEach(toggle => {
+    toggle.addEventListener('click', e => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      toggle.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const mode = btn.dataset.mode;
+      const variant = toggle.dataset.variant;
+      const grid = document.querySelector('#variant-' + variant + ' .grid');
+      grid.classList.remove('feed', 'mosaic-2', 'mosaic-3');
+      if (mode === 'feed') grid.classList.add('feed');
+      else grid.classList.add('mosaic-2'); // 2-col on toggle, user can pick 3 from tab C
+    });
+  });
+</script>
+</body>
+</html>
