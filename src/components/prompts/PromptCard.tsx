@@ -126,3 +126,77 @@ export function PromptCard({ prompt }: PromptCardProps) {
     </div>
   );
 }
+
+export function PromptCardMosaic({ prompt }: PromptCardProps) {
+  const { toggleFavorite } = usePromptStore();
+  const { openDetailModal } = useUIStore();
+
+  const categoryConfig = prompt.category ? CATEGORY_CONFIG[prompt.category] : null;
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleFavorite(prompt.id);
+  };
+
+  const handleCopyClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(prompt.content);
+  };
+
+  return (
+    <div
+      onClick={() => openDetailModal(prompt.id)}
+      className="prompt-card-mosaic cursor-pointer group relative rounded-xl overflow-hidden bg-[#1A1A24]"
+    >
+      <div className="aspect-square w-full">
+        {prompt.thumbnailUrl ? (
+          <img
+            src={prompt.thumbnailUrl}
+            alt={prompt.title || 'Prompt'}
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-[#12121A]">
+            <ImageIcon className="w-10 h-10 text-[#3A3A4A]" />
+          </div>
+        )}
+      </div>
+
+      <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/90 via-black/40 to-transparent pointer-events-none" />
+
+      {categoryConfig && (
+        <div className={`absolute top-2 left-2 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-gradient-to-r ${categoryConfig.gradient} text-white`}>
+          {categoryConfig.label}
+        </div>
+      )}
+
+      <div className="absolute inset-x-0 bottom-0 p-3">
+        <h3 className="font-medium text-white text-sm line-clamp-2 leading-snug">
+          {prompt.title || 'Sin título'}
+        </h3>
+      </div>
+
+      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
+        <button
+          onClick={handleFavoriteClick}
+          className={`p-2 rounded-lg transition-colors ${
+            prompt.isFavorite
+              ? 'text-[#8B5CF6] bg-[#8B5CF6]/10'
+              : 'text-white/80 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <Heart
+            className="w-4 h-4"
+            fill={prompt.isFavorite ? 'currentColor' : 'none'}
+          />
+        </button>
+        <button
+          onClick={handleCopyClick}
+          className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+        >
+          <Copy className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}

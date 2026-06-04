@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, SlidersHorizontal, X } from 'lucide-react';
+import { Search, Plus, SlidersHorizontal, X, LayoutGrid, LayoutList } from 'lucide-react';
 import { usePromptStore } from '@/stores/promptStore';
 import { useUIStore } from '@/stores/uiStore';
 import type { Category } from '@/types';
@@ -14,7 +14,7 @@ const CATEGORIES: { value: Category | ''; label: string }[] = [
 
 export function Header() {
   const { filters, setFilters, fetchPrompts } = usePromptStore();
-  const { openCreateModal, toggleFilterPanel, filterPanelOpen } = useUIStore();
+  const { openCreateModal, toggleFilterPanel, filterPanelOpen, viewMode, setViewMode } = useUIStore();
   const [searchValue, setSearchValue] = useState(filters.search || '');
 
   // Debounce search
@@ -70,6 +70,32 @@ export function Header() {
                 </button>
               )}
             </div>
+          </div>
+
+          {/* View Mode Toggle */}
+          <div className="flex items-center bg-[#12121A] border border-[#2A2A3A] rounded-lg p-0.5">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded-md transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-[#8B5CF6] text-white'
+                  : 'text-[#71717A] hover:text-white'
+              }`}
+              title="Vista lista"
+            >
+              <LayoutList className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('mosaic')}
+              className={`p-2 rounded-md transition-colors ${
+                viewMode === 'mosaic'
+                  ? 'bg-[#8B5CF6] text-white'
+                  : 'text-[#71717A] hover:text-white'
+              }`}
+              title="Vista mosaico"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
           </div>
 
           {/* Filter Button */}

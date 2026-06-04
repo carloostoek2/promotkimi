@@ -20,6 +20,9 @@ interface UIState {
   // Filter panel
   filterPanelOpen: boolean;
 
+  // View mode
+  viewMode: 'list' | 'mosaic';
+
   // Actions
   openCreateModal: () => void;
   closeCreateModal: () => void;
@@ -41,6 +44,10 @@ interface UIState {
 
   toggleFilterPanel: () => void;
   closeFilterPanel: () => void;
+
+  // View mode actions
+  setViewMode: (mode: 'list' | 'mosaic') => void;
+  toggleViewMode: () => void;
 
   // Toast actions
   addToast: (toast: Omit<Toast, 'id'>) => string;
@@ -69,6 +76,7 @@ export const useUIStore = create<UIState>((set, get) => ({
   selectedFlowId: null,
   toasts: [],
   filterPanelOpen: false,
+  viewMode: 'list',
 
   // Create modal
   openCreateModal: () => set({ createModalOpen: true }),
@@ -120,6 +128,10 @@ export const useUIStore = create<UIState>((set, get) => ({
   // Filter panel
   toggleFilterPanel: () => set(state => ({ filterPanelOpen: !state.filterPanelOpen })),
   closeFilterPanel: () => set({ filterPanelOpen: false }),
+
+  // View mode
+  setViewMode: (viewMode) => set({ viewMode }),
+  toggleViewMode: () => set(state => ({ viewMode: state.viewMode === 'list' ? 'mosaic' : 'list' })),
 
   // Toast actions
   addToast: (toast): string => {
