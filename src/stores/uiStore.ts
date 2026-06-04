@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { Toast } from '@/types';
 
 interface UIState {
@@ -64,7 +65,9 @@ interface UIState {
 // Generate unique ID
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
-export const useUIStore = create<UIState>((set, get) => ({
+export const useUIStore = create<UIState>()(
+  persist(
+    (set, get) => ({
   // Initial state
   createModalOpen: false,
   detailModalOpen: false,
@@ -182,4 +185,9 @@ export const useUIStore = create<UIState>((set, get) => ({
       )
     }));
   },
-}));
+}),
+  {
+    name: 'promptvault-ui',
+    partialize: (state) => ({ viewMode: state.viewMode }),
+  }
+));
