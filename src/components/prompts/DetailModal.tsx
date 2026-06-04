@@ -202,7 +202,7 @@ export function DetailModal() {
       )}
 
       <div
-        className="modal-content animate-modal-enter max-w-2xl select-none"
+        className="modal-content animate-modal-enter max-w-2xl select-none flex flex-col max-h-[90vh]"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -259,7 +259,7 @@ export function DetailModal() {
         {/* Content */}
         <div
           ref={contentRef}
-          className="p-4 space-y-6 max-h-[70vh] overflow-y-auto animate-content-fade"
+          className="p-4 space-y-6 flex-1 overflow-y-auto min-h-0 animate-content-fade"
           key={selectedPromptId}
         >
           {isLoading ? (
@@ -301,19 +301,9 @@ export function DetailModal() {
 
               {/* Prompt Content */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-medium text-[#71717A] uppercase tracking-wider">
-                    Prompt
-                  </h3>
-                  <button
-                    onClick={handleCopy}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm
-                             text-[#A1A1AA] hover:text-white hover:bg-[#1A1A24] transition-colors"
-                  >
-                    <Copy className="w-4 h-4" />
-                    Copiar
-                  </button>
-                </div>
+                <h3 className="text-sm font-medium text-[#71717A] uppercase tracking-wider">
+                  Prompt
+                </h3>
                 <div className="p-4 bg-[#1A1A24] rounded-xl">
                   <p className="text-white font-mono whitespace-pre-wrap">
                     {prompt.content}
@@ -398,6 +388,21 @@ export function DetailModal() {
             </div>
           )}
         </div>
+
+        {/* Fixed Bottom Copy Bar */}
+        {prompt && (
+          <div className="shrink-0 p-4 border-t border-[#2A2A3A]">
+            <button
+              onClick={handleCopy}
+              className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl
+                       bg-gradient-to-r from-[#8B5CF6] to-[#06B6D4]
+                       text-white font-medium hover:opacity-90 transition-opacity"
+            >
+              <Copy className="w-4 h-4" />
+              Copiar prompt
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

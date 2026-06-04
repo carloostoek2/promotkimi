@@ -128,20 +128,9 @@ export function PromptCard({ prompt }: PromptCardProps) {
 }
 
 export function PromptCardMosaic({ prompt }: PromptCardProps) {
-  const { toggleFavorite } = usePromptStore();
   const { openDetailModal } = useUIStore();
 
   const categoryConfig = prompt.category ? CATEGORY_CONFIG[prompt.category] : null;
-
-  const handleFavoriteClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    toggleFavorite(prompt.id);
-  };
-
-  const handleCopyClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    navigator.clipboard.writeText(prompt.content);
-  };
 
   return (
     <div
@@ -174,28 +163,6 @@ export function PromptCardMosaic({ prompt }: PromptCardProps) {
         <h3 className="font-medium text-white text-sm line-clamp-2 leading-snug">
           {prompt.title || 'Sin título'}
         </h3>
-      </div>
-
-      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
-        <button
-          onClick={handleFavoriteClick}
-          className={`p-2 rounded-lg transition-colors ${
-            prompt.isFavorite
-              ? 'text-[#8B5CF6] bg-[#8B5CF6]/10'
-              : 'text-white/80 hover:text-white hover:bg-white/10'
-          }`}
-        >
-          <Heart
-            className="w-4 h-4"
-            fill={prompt.isFavorite ? 'currentColor' : 'none'}
-          />
-        </button>
-        <button
-          onClick={handleCopyClick}
-          className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
-        >
-          <Copy className="w-4 h-4" />
-        </button>
       </div>
     </div>
   );
