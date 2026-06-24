@@ -2,7 +2,13 @@ import { useState, useEffect } from 'react';
 import { Search, Plus, SlidersHorizontal, X, LayoutGrid, LayoutList } from 'lucide-react';
 import { usePromptStore } from '@/stores/promptStore';
 import { useUIStore } from '@/stores/uiStore';
-import type { Category } from '@/types';
+import type { Category, ImageIntent, ImageTarget, InputMode, Preservation } from '@/types';
+import {
+  INTENT_CONFIG,
+  TARGET_CONFIG,
+  INPUT_MODE_CONFIG,
+  PRESERVATION_CONFIG,
+} from '@/types';
 
 const CATEGORIES: { value: Category | ''; label: string }[] = [
   { value: '', label: 'Todas' },
@@ -10,6 +16,31 @@ const CATEGORIES: { value: Category | ''; label: string }[] = [
   { value: 'VIDEO', label: 'Video' },
   { value: 'TEXTO', label: 'Texto' },
   { value: 'AUDIO', label: 'Audio' },
+];
+
+const INTENTS: { value: ImageIntent | ''; label: string }[] = [
+  { value: '', label: 'Todas' },
+  ...(Object.entries(INTENT_CONFIG) as [ImageIntent, { label: string }][]).map(
+    ([value, config]) => ({ value, label: config.label })
+  ),
+];
+
+const TARGETS: { value: ImageTarget; label: string }[] = (
+  Object.entries(TARGET_CONFIG) as [ImageTarget, { label: string }][]
+).map(([value, config]) => ({ value, label: config.label }));
+
+const INPUT_MODES: { value: InputMode | ''; label: string }[] = [
+  { value: '', label: 'Todos' },
+  ...(Object.entries(INPUT_MODE_CONFIG) as [InputMode, { label: string }][]).map(
+    ([value, config]) => ({ value, label: config.label })
+  ),
+];
+
+const PRESERVATIONS: { value: Preservation | ''; label: string }[] = [
+  { value: '', label: 'Todos' },
+  ...(Object.entries(PRESERVATION_CONFIG) as [Preservation, { label: string }][]).map(
+    ([value, config]) => ({ value, label: config.label })
+  ),
 ];
 
 export function Header() {
@@ -33,7 +64,29 @@ export function Header() {
     fetchPrompts();
   };
 
-  const hasActiveFilters = filters.category || filters.isFavorite || (filters.tags && filters.tags.length > 0);
+  const showImageFilters = !filters.category || filters.category === 'IMAGEN';
+
+  const hasActiveFilters =
+    filters.category ||
+    filters.isFavorite ||
+    (filters.tags && filters.tags.length > 0) ||
+    filters.intent ||
+    filters.target ||
+    filters.inputMode ||
+    filters.preservation;
+
+  const clearAllFilters = () => {
+    setFilters({
+      category: undefined,
+      isFavorite: undefined,
+      tags: undefined,
+      intent: undefined,
+      target: undefined,
+      inputMode: undefined,
+      preservation: undefined,
+    });
+    fetchPrompts();
+  };
 
   return (
     <header className="sticky top-0 z-30 bg-[#0A0A0F]/80 backdrop-blur-lg border-b border-[#2A2A3A]">
@@ -127,17 +180,28 @@ export function Header() {
 
         {/* Filter Panel */}
         {filterPanelOpen && (
-          <div className="mt-4 p-4 bg-[#12121A] border border-[#2A2A3A] rounded-xl animate-fade-in">
+          <div className="mt-4 p-4 bg-[#12121A] border border-[#2A2A3A] rounded-xl animate-fade-in space-y-4">
             <div className="flex flex-wrap items-center gap-4">
               {/* Category Filter */}
               <div className="flex items-center gap-2">
                 <span className="text-sm text-[#71717A]">Categoría:</span>
-                <div className="flex gap-1">
+                <div className="flex flex-wrap gap-1">
                   {CATEGORIES.map((cat) => (
                     <button
                       key={cat.value}
                       onClick={() => {
-                        setFilters({ category: cat.value as Category || undefined });
+                        const category = cat.value ? (cat.value as Category) : undefined;
+                        setFilters({
+                          category,
+                          ...(category && category !== 'IMAGEN'
+                            ? {
+                                intent: undefined,
+                                target: undefined,
+                                inputMode: undefined,
+                                preservation: undefined,
+                              }
+                            : {}),
+                        });
                         fetchPrompts();
                       }}
                       className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
@@ -172,16 +236,116 @@ export function Header() {
               {/* Clear Filters */}
               {hasActiveFilters && (
                 <button
-                  onClick={() => {
-                    setFilters({ category: undefined, isFavorite: undefined, tags: undefined });
-                    fetchPrompts();
-                  }}
+                  onClick={clearAllFilters}
                   className="text-sm text-[#71717A] hover:text-white transition-colors"
                 >
                   Limpiar filtros
                 </button>
               )}
             </div>
+
+            {/* Image Intent Filters */}
+            {showImageFilters && (
+              <div className="pt-4 border-t border-[#2A2A3A] space-y-4">
+                {/* Intent */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-[#71717A] shrink-0">Intención:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {INTENTS.map((intent) => (
+                      <button
+                        key={intent.value || 'all'}
+                        onClick={() => {
+                          setFilters({ intent: intent.value ? intent.value : undefined });
+                          fetchPrompts();
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                          filters.intent === intent.value || (!filters.intent && !intent.value)
+                            ? 'bg-[#8B5CF6] text-white'
+                            : 'bg-[#1A1A24] text-[#A1A1AA] hover:text-white'
+                        }`}
+                      >
+                        {intent.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Target */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-[#71717A] shrink-0">Objetivo:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {TARGETS.map((target) => {
+                      const isSelected = filters.target === target.value;
+                      return (
+                        <button
+                          key={target.value}
+                          onClick={() => {
+                            setFilters({ target: isSelected ? undefined : target.value });
+                            fetchPrompts();
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                            isSelected
+                              ? 'bg-[#06B6D4] text-white'
+                              : 'bg-[#1A1A24] text-[#A1A1AA] hover:text-white'
+                          }`}
+                        >
+                          {target.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Input Mode */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-[#71717A] shrink-0">Modo de entrada:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {INPUT_MODES.map((mode) => (
+                      <button
+                        key={mode.value || 'all'}
+                        onClick={() => {
+                          setFilters({ inputMode: mode.value ? mode.value : undefined });
+                          fetchPrompts();
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                          filters.inputMode === mode.value || (!filters.inputMode && !mode.value)
+                            ? 'bg-[#8B5CF6] text-white'
+                            : 'bg-[#1A1A24] text-[#A1A1AA] hover:text-white'
+                        }`}
+                      >
+                        {mode.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Preservation */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-[#71717A] shrink-0">Preservación:</span>
+                  <div className="flex flex-wrap gap-1">
+                    {PRESERVATIONS.map((preservation) => (
+                      <button
+                        key={preservation.value || 'all'}
+                        onClick={() => {
+                          setFilters({
+                            preservation: preservation.value ? preservation.value : undefined,
+                          });
+                          fetchPrompts();
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                          filters.preservation === preservation.value ||
+                          (!filters.preservation && !preservation.value)
+                            ? 'bg-[#8B5CF6] text-white'
+                            : 'bg-[#1A1A24] text-[#A1A1AA] hover:text-white'
+                        }`}
+                      >
+                        {preservation.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

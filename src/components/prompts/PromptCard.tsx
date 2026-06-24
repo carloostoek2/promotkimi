@@ -1,6 +1,6 @@
 import { Heart, Copy, Image as ImageIcon } from 'lucide-react';
 import type { Prompt } from '@/types';
-import { CATEGORY_CONFIG } from '@/types';
+import { CATEGORY_CONFIG, INTENT_CONFIG } from '@/types';
 import { usePromptStore } from '@/stores/promptStore';
 import { useUIStore } from '@/stores/uiStore';
 
@@ -14,6 +14,7 @@ export function PromptCard({ prompt }: PromptCardProps) {
 
   const category = prompt.category;
   const categoryConfig = category ? CATEGORY_CONFIG[category] : null;
+  const intentConfig = prompt.intent ? INTENT_CONFIG[prompt.intent] : null;
 
   // Get first 3 tags
   const displayTags = prompt.tags.slice(0, 3);
@@ -58,10 +59,19 @@ export function PromptCard({ prompt }: PromptCardProps) {
           </div>
         )}
         
-        {/* Category Badge */}
-        {categoryConfig && (
-          <div className={`absolute top-2 left-2 px-2 py-1 rounded-full text-xs font-medium bg-gradient-to-r ${categoryConfig.gradient} text-white`}>
-            {categoryConfig.label}
+        {/* Category & Intent Badges */}
+        {(categoryConfig || intentConfig) && (
+          <div className="absolute top-2 left-2 flex flex-col gap-1">
+            {categoryConfig && (
+              <div className={`px-2 py-1 rounded-full text-xs font-medium bg-gradient-to-r ${categoryConfig.gradient} text-white`}>
+                {categoryConfig.label}
+              </div>
+            )}
+            {intentConfig && (
+              <div className={`px-2 py-0.5 rounded-full text-[10px] font-medium bg-gradient-to-r ${intentConfig.gradient} text-white`}>
+                {intentConfig.label}
+              </div>
+            )}
           </div>
         )}
       </div>

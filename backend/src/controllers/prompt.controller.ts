@@ -3,7 +3,8 @@ import { z } from 'zod';
 import * as promptService from '../services/prompt.service';
 import * as imageService from '../services/image.service';
 import { queueAnalysis } from '../config/queue';
-import { Category } from '@prisma/client';
+import { Category, ImageIntent, ImageTarget, InputMode, Preservation } from '@prisma/client';
+import { validateIntentCategoryCoherence } from '../utils/intentValidation';
 
 // ==================== VALIDATION SCHEMAS ====================
 
@@ -21,9 +22,31 @@ const updatePromptSchema = z.object({
   content: z.string().optional(),
   category: z.nativeEnum(Category).optional(),
   subcategory: z.string().max(50).optional(),
+  intent: z.nativeEnum(ImageIntent).nullable().optional(),
+  targets: z.array(z.nativeEnum(ImageTarget)).optional(),
+  inputMode: z.nativeEnum(InputMode).nullable().optional(),
+  preservation: z.nativeEnum(Preservation).nullable().optional(),
   metadata: z.record(z.any()).optional(),
-  tags: z.array(z.string()).optional()
+  tags: z.array(z.string()).optional(),
 });
+
+function parseEnumParam<T extends string>(
+  value: unknown,
+  enumObj: Record<string, T>,
+  fieldName: string
+): T | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  if (typeof value !== 'string') {
+    throw new Error(`Valor inválido para ${fieldName}: ${String(value)}`);
+  }
+  const enumValues = Object.values(enumObj);
+  if (!enumValues.includes(value as T)) {
+    throw new Error(`Valor inválido para ${fieldName}: ${value}`);
+  }
+  return value as T;
+}
 
 // ==================== CONTROLLERS ====================
 
@@ -80,12 +103,35 @@ export async function createPrompt(req: Request, res: Response) {
 
 export async function getPrompts(req: Request, res: Response) {
   try {
+    let category: Category | undefined;
+    let intent: ImageIntent | undefined;
+    let target: ImageTarget | undefined;
+    let inputMode: InputMode | undefined;
+    let preservation: Preservation | undefined;
+
+    try {
+      category = parseEnumParam(req.query.category, Category, 'category');
+      intent = parseEnumParam(req.query.intent, ImageIntent, 'intent');
+      target = parseEnumParam(req.query.target, ImageTarget, 'target');
+      inputMode = parseEnumParam(req.query.inputMode, InputMode, 'inputMode');
+      preservation = parseEnumParam(req.query.preservation, Preservation, 'preservation');
+    } catch (enumError) {
+      return res.status(400).json({
+        success: false,
+        error: enumError instanceof Error ? enumError.message : 'Parámetro de filtro inválido',
+      });
+    }
+
     const filters = {
       search: req.query.search as string | undefined,
-      category: req.query.category as Category | undefined,
+      category,
       tags: req.query.tags ? (req.query.tags as string).split(',') : undefined,
-      isFavorite: req.query.isFavorite === 'true' ? true : 
+      isFavorite: req.query.isFavorite === 'true' ? true :
                   req.query.isFavorite === 'false' ? false : undefined,
+      intent,
+      target,
+      inputMode,
+      preservation,
       sortBy: (req.query.sortBy as 'createdAt' | 'updatedAt' | 'title') || 'createdAt',
       sortOrder: (req.query.sortOrder as 'asc' | 'desc') || 'desc'
     };
@@ -136,6 +182,15 @@ export async function getPromptById(req: Request, res: Response) {
 export async function updatePrompt(req: Request, res: Response) {
   try {
     const { id } = req.params;
+
+    const existingPrompt = await promptService.getPromptById(id);
+    if (!existingPrompt) {
+      return res.status(404).json({
+        success: false,
+        error: 'Prompt no encontrado'
+      });
+    }
+
     const validation = updatePromptSchema.safeParse(req.body);
 
     if (!validation.success) {
@@ -145,17 +200,24 @@ export async function updatePrompt(req: Request, res: Response) {
       });
     }
 
-    // Verificar que el prompt existe
-    const existingPrompt = await promptService.getPromptById(id);
-    if (!existingPrompt) {
-      return res.status(404).json({
+    const effectiveCategory = validation.data.category ?? existingPrompt.category;
+    const coherenceError = validateIntentCategoryCoherence(
+      validation.data,
+      effectiveCategory
+    );
+
+    if (coherenceError) {
+      return res.status(400).json({
         success: false,
-        error: 'Prompt no encontrado'
+        error: coherenceError,
       });
     }
 
-    // Actualizar prompt
-    const prompt = await promptService.updatePrompt(id, validation.data);
+    const prompt = await promptService.updatePrompt(id, validation.data, {
+      category: existingPrompt.category,
+      intent: existingPrompt.intent ?? null,
+      subcategory: existingPrompt.subcategory ?? null,
+    });
 
     return res.json({
       success: true,

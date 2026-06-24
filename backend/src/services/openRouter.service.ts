@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { AnalysisResult, OpenRouterResponse } from '../types';
+import { INTENT_SUBCATEGORIES } from '../constants/intentVocabulary';
+import { sanitizeAnalysisResult } from '../utils/intentValidation';
 
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const API_KEY = process.env.OPENROUTER_API_KEY || '';
@@ -21,12 +23,27 @@ CATEGORÍAS VÁLIDAS:
 - TEXTO: prompts para LLMs (ChatGPT, Claude, etc.)
 - AUDIO: prompts para generación de audio/música/voz
 
+INTENT TAXONOMY (solo para category IMAGEN):
+- intent (uno): GENERAR | MEJORAR_REALISMO | TRANSFORMAR | RETOQUE | COMPONER | DEFINIR_IDENTIDAD | MODIFICAR_POSE | null
+- targets (array, multi-select): ROSTRO | PIEL | CUERPO | ILUMINACION | ESCENA_COMPLETA | ROPA_TEXTURA
+- inputMode (uno): TEXTO_A_IMAGEN | IMAGEN_A_IMAGEN | MULTI_IMAGEN | null
+- preservation (uno): IDENTIDAD | COMPOSICION | LIBRE | null
+- subcategory: slug controlado según intent (ver REFERENCIA SUBCATEGORÍAS al final) o null
+
+REGLAS INTENT (IMAGEN vs no-IMAGEN):
+- Si category NO es IMAGEN: intent=null, targets=[], inputMode=null, preservation=null
+- Si category es IMAGEN: elige un intent; targets es array multi-select; subcategory DEBE ser de la lista permitida para ese intent
+
 ESTRUCTURA DE RESPUESTA:
 {
   "title": "string - título conciso y descriptivo (max 100 chars)",
   "description": "string - descripción breve de qué hace el prompt (max 300 chars)",
   "category": "IMAGEN|VIDEO|TEXTO|AUDIO",
-  "subcategory": "string - subcategoría específica según la categoría",
+  "intent": "GENERAR|MEJORAR_REALISMO|TRANSFORMAR|RETOQUE|COMPONER|DEFINIR_IDENTIDAD|MODIFICAR_POSE|null",
+  "targets": ["ROSTRO", "PIEL"],
+  "inputMode": "TEXTO_A_IMAGEN|IMAGEN_A_IMAGEN|MULTI_IMAGEN|null",
+  "preservation": "IDENTIDAD|COMPOSICION|LIBRE|null",
+  "subcategory": "controlled-slug-or-null",
   "tags": ["array", "de", "tags", "relevantes", "en", "ingles", "lowercase"],
   "metadata": {
     // campos específicos según categoría
@@ -61,7 +78,12 @@ PARA CATEGORÍA AUDIO, incluir en metadata:
 - style: narrativo|conversacional|musical|ambiental
 - genre: rock|electrónica|clásica|jazz|pop|hip-hop
 - mood: energético|relajado|triste|alegre
-- tempo: lento|moderado|rápido`;
+- tempo: lento|moderado|rápido
+
+REFERENCIA SUBCATEGORÍAS (copia exacta):
+${Object.entries(INTENT_SUBCATEGORIES)
+  .map(([intent, subs]) => `- ${intent}: ${subs.join(', ')}`)
+  .join('\n')}`;
 
 export async function analyzePrompt(promptContent: string): Promise<AnalysisResult> {
   if (!API_KEY) {
@@ -77,7 +99,7 @@ export async function analyzePrompt(promptContent: string): Promise<AnalysisResu
         { role: 'user', content: `Analiza el siguiente prompt y extrae la metadata estructurada:\n\n---\n${promptContent}\n---` }
       ],
       temperature: 0.3,
-      max_tokens: 1000
+      max_tokens: 1200
     },
     {
       headers: {
@@ -107,7 +129,7 @@ export async function analyzePrompt(promptContent: string): Promise<AnalysisResu
 
   try {
     const result: AnalysisResult = JSON.parse(jsonContent);
-    return result;
+    return sanitizeAnalysisResult(result);
   } catch (error) {
     console.error('Error parseando JSON:', content);
     throw new Error('Respuesta inválida de OpenRouter: no es JSON válido');

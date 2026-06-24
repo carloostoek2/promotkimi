@@ -3,6 +3,27 @@
 export type Category = 'IMAGEN' | 'VIDEO' | 'TEXTO' | 'AUDIO';
 export type AnalysisStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 
+export type ImageIntent =
+  | 'GENERAR'
+  | 'MEJORAR_REALISMO'
+  | 'TRANSFORMAR'
+  | 'RETOQUE'
+  | 'COMPONER'
+  | 'DEFINIR_IDENTIDAD'
+  | 'MODIFICAR_POSE';
+
+export type ImageTarget =
+  | 'ROSTRO'
+  | 'PIEL'
+  | 'CUERPO'
+  | 'ILUMINACION'
+  | 'ESCENA_COMPLETA'
+  | 'ROPA_TEXTURA';
+
+export type InputMode = 'TEXTO_A_IMAGEN' | 'IMAGEN_A_IMAGEN' | 'MULTI_IMAGEN';
+
+export type Preservation = 'IDENTIDAD' | 'COMPOSICION' | 'LIBRE';
+
 export interface Tag {
   id: string;
   name: string;
@@ -23,6 +44,10 @@ export interface Prompt {
   content: string;
   category: Category | null;
   subcategory: string | null;
+  intent: ImageIntent | null;
+  targets: ImageTarget[];
+  inputMode: InputMode | null;
+  preservation: Preservation | null;
   metadata: Record<string, any> | null;
   imageUrl: string | null;
   thumbnailUrl: string | null;
@@ -65,6 +90,10 @@ export interface PromptFilters {
   category?: Category;
   tags?: string[];
   isFavorite?: boolean;
+  intent?: ImageIntent;
+  target?: ImageTarget;
+  inputMode?: InputMode;
+  preservation?: Preservation;
   sortBy?: 'createdAt' | 'updatedAt' | 'title';
   sortOrder?: 'asc' | 'desc';
 }
@@ -130,6 +159,65 @@ export interface ReorderNodesInput {
 }
 
 // ==================== CATEGORY CONFIG ====================
+
+export const INTENT_CONFIG: Record<ImageIntent, { label: string; color: string; gradient: string }> = {
+  GENERAR: {
+    label: 'Generar',
+    color: '#8B5CF6',
+    gradient: 'from-[#8B5CF6] to-[#A78BFA]',
+  },
+  MEJORAR_REALISMO: {
+    label: 'Mejorar realismo',
+    color: '#06B6D4',
+    gradient: 'from-[#06B6D4] to-[#22D3EE]',
+  },
+  TRANSFORMAR: {
+    label: 'Transformar',
+    color: '#F59E0B',
+    gradient: 'from-[#F59E0B] to-[#FBBF24]',
+  },
+  RETOQUE: {
+    label: 'Retoque',
+    color: '#EC4899',
+    gradient: 'from-[#EC4899] to-[#F472B6]',
+  },
+  COMPONER: {
+    label: 'Componer',
+    color: '#10B981',
+    gradient: 'from-[#10B981] to-[#34D399]',
+  },
+  DEFINIR_IDENTIDAD: {
+    label: 'Definir identidad',
+    color: '#6366F1',
+    gradient: 'from-[#6366F1] to-[#818CF8]',
+  },
+  MODIFICAR_POSE: {
+    label: 'Modificar pose',
+    color: '#EF4444',
+    gradient: 'from-[#EF4444] to-[#F87171]',
+  },
+};
+
+export const TARGET_CONFIG: Record<ImageTarget, { label: string }> = {
+  ROSTRO: { label: 'Rostro' },
+  PIEL: { label: 'Piel' },
+  CUERPO: { label: 'Cuerpo' },
+  ILUMINACION: { label: 'Iluminación' },
+  ESCENA_COMPLETA: { label: 'Escena completa' },
+  ROPA_TEXTURA: { label: 'Ropa y textura' },
+};
+
+export const INPUT_MODE_CONFIG: Record<InputMode, { label: string }> = {
+  TEXTO_A_IMAGEN: { label: 'Texto a imagen' },
+  IMAGEN_A_IMAGEN: { label: 'Imagen a imagen' },
+  MULTI_IMAGEN: { label: 'Multi imagen' },
+};
+
+export const PRESERVATION_CONFIG: Record<Preservation, { label: string }> = {
+  IDENTIDAD: { label: 'Identidad' },
+  COMPOSICION: { label: 'Composición' },
+  LIBRE: { label: 'Libre' },
+};
 
 export const CATEGORY_CONFIG: Record<Category, { label: string; color: string; gradient: string }> = {
   IMAGEN: {

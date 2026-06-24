@@ -56,7 +56,7 @@ backend/prisma/schema.prisma  # Database schema (Prompt, Tag, PromptTag, Analysi
 
 ## API Routes
 
-- `GET /api/prompts` - List prompts (supports `?category=`, `?search=`, `?favorite=true`)
+- `GET /api/prompts` - List prompts (supports `?category=`, `?search=`, `?isFavorite=true`, `?intent=`, `?target=`, `?inputMode=`, `?preservation=`). Invalid enum query params return 400.
 - `POST /api/prompts` - Create prompt
 - `GET/PUT/DELETE /api/prompts/:id` - CRUD operations
 - `POST /api/prompts/:id/favorite` - Toggle favorite

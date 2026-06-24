@@ -150,7 +150,15 @@ export const usePromptStore = create<PromptState>((set, get) => ({
 
   // Reset filters
   resetFilters: () => {
-    set({ filters: defaultFilters });
+    set({
+      filters: {
+        ...defaultFilters,
+        intent: undefined,
+        target: undefined,
+        inputMode: undefined,
+        preservation: undefined,
+      },
+    });
   },
 
   // Select prompt

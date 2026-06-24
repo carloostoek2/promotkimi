@@ -2,7 +2,13 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { X, Heart, Copy, Pencil, Trash2, Image as ImageIcon, Loader2, ChevronLeft, ChevronRight, GitBranch } from 'lucide-react';
 import { usePromptStore } from '@/stores/promptStore';
 import { useUIStore } from '@/stores/uiStore';
-import { CATEGORY_CONFIG } from '@/types';
+import {
+  CATEGORY_CONFIG,
+  INTENT_CONFIG,
+  TARGET_CONFIG,
+  INPUT_MODE_CONFIG,
+  PRESERVATION_CONFIG,
+} from '@/types';
 import type { Flow } from '@/types';
 import * as api from '@/services/api';
 
@@ -166,6 +172,21 @@ export function DetailModal() {
 
   const prompt = selectedPrompt;
   const categoryConfig = prompt?.category ? CATEGORY_CONFIG[prompt.category] : null;
+  const intentConfig = prompt?.intent ? INTENT_CONFIG[prompt.intent] : null;
+
+  const formatSubcategory = (slug: string) =>
+    slug
+      .split('-')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+
+  const hasIntentMetadata =
+    prompt &&
+    (prompt.intent ||
+      prompt.targets.length > 0 ||
+      prompt.inputMode ||
+      prompt.preservation ||
+      prompt.subcategory);
 
   return (
     <div
@@ -310,6 +331,49 @@ export function DetailModal() {
                   </p>
                 </div>
               </div>
+
+              {/* Intent Categorization */}
+              {hasIntentMetadata && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-[#71717A] uppercase tracking-wider">
+                    Categorización de imagen
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {intentConfig && (
+                      <div className="p-3 bg-[#1A1A24] rounded-lg">
+                        <p className="text-xs text-[#71717A]">Intención</p>
+                        <p className="text-sm text-white">{intentConfig.label}</p>
+                      </div>
+                    )}
+                    {prompt.targets.length > 0 && (
+                      <div className="p-3 bg-[#1A1A24] rounded-lg">
+                        <p className="text-xs text-[#71717A]">Objetivos</p>
+                        <p className="text-sm text-white">
+                          {prompt.targets.map((t) => TARGET_CONFIG[t].label).join(', ')}
+                        </p>
+                      </div>
+                    )}
+                    {prompt.inputMode && (
+                      <div className="p-3 bg-[#1A1A24] rounded-lg">
+                        <p className="text-xs text-[#71717A]">Modo de entrada</p>
+                        <p className="text-sm text-white">{INPUT_MODE_CONFIG[prompt.inputMode].label}</p>
+                      </div>
+                    )}
+                    {prompt.preservation && (
+                      <div className="p-3 bg-[#1A1A24] rounded-lg">
+                        <p className="text-xs text-[#71717A]">Preservación</p>
+                        <p className="text-sm text-white">{PRESERVATION_CONFIG[prompt.preservation].label}</p>
+                      </div>
+                    )}
+                    {prompt.subcategory && (
+                      <div className="p-3 bg-[#1A1A24] rounded-lg">
+                        <p className="text-xs text-[#71717A]">Subcategoría</p>
+                        <p className="text-sm text-white">{formatSubcategory(prompt.subcategory)}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Metadata */}
               {prompt.metadata && Object.keys(prompt.metadata).length > 0 && (

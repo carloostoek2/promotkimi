@@ -1,4 +1,11 @@
-import { Category, AnalysisStatus } from '@prisma/client';
+import {
+  Category,
+  AnalysisStatus,
+  ImageIntent,
+  ImageTarget,
+  InputMode,
+  Preservation,
+} from '@prisma/client';
 
 // ==================== PROMPT TYPES ====================
 
@@ -12,7 +19,11 @@ export interface UpdatePromptInput {
   description?: string;
   content?: string;
   category?: Category;
-  subcategory?: string;
+  subcategory?: string | null;
+  intent?: ImageIntent | null;
+  targets?: ImageTarget[];
+  inputMode?: InputMode | null;
+  preservation?: Preservation | null;
   metadata?: Record<string, any>;
   tags?: string[];
 }
@@ -22,6 +33,10 @@ export interface PromptFilters {
   category?: Category;
   tags?: string[];
   isFavorite?: boolean;
+  intent?: ImageIntent;
+  target?: ImageTarget;
+  inputMode?: InputMode;
+  preservation?: Preservation;
   sortBy?: 'createdAt' | 'updatedAt' | 'title';
   sortOrder?: 'asc' | 'desc';
 }
@@ -32,7 +47,11 @@ export interface AnalysisResult {
   title: string;
   description: string;
   category: Category;
-  subcategory: string;
+  subcategory: string | null;
+  intent?: ImageIntent | null;
+  targets?: ImageTarget[];
+  inputMode?: InputMode | null;
+  preservation?: Preservation | null;
   tags: string[];
   metadata: Record<string, any>;
   confidence: number;

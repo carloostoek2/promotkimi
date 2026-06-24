@@ -10,7 +10,10 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "reanalyze": "tsx scripts/reanalyze-prompts.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.10.0",
@@ -34,6 +37,7 @@
     "@types/uuid": "^11.0.0",
     "prisma": "^5.10.0",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^3.2.4"
   }
 }

@@ -1,6 +1,8 @@
-import { Prisma, Category, AnalysisStatus } from '@prisma/client';
+import { Prisma, Category, AnalysisStatus, ImageIntent, ImageTarget, InputMode, Preservation } from '@prisma/client';
 import prisma from '../config/database';
 import { CreatePromptInput, UpdatePromptInput, PromptFilters } from '../types';
+import { buildPromptWhereClause } from '../utils/promptFilters';
+import { sanitizePromptUpdate, PromptUpdateExisting } from '../utils/intentValidation';
 
 // ==================== CRUD OPERATIONS ====================
 
@@ -35,8 +37,27 @@ export async function getPromptById(id: string) {
   });
 }
 
-export async function updatePrompt(id: string, data: UpdatePromptInput) {
-  const { tags, ...promptData } = data;
+export async function updatePrompt(
+  id: string,
+  data: UpdatePromptInput,
+  existingContext?: PromptUpdateExisting
+) {
+  let existing = existingContext;
+
+  if (!existing) {
+    const row = await prisma.prompt.findUnique({
+      where: { id },
+      select: { category: true, intent: true, subcategory: true },
+    });
+    existing = {
+      category: row?.category ?? null,
+      intent: row?.intent ?? null,
+      subcategory: row?.subcategory ?? null,
+    };
+  }
+
+  const sanitizedData = sanitizePromptUpdate(data, existing);
+  const { tags, ...promptData } = sanitizedData;
 
   // Si se actualizan tags, manejar la relación
   if (tags !== undefined) {
@@ -109,49 +130,9 @@ export async function deletePrompt(id: string) {
 // ==================== LIST WITH FILTERS ====================
 
 export async function getPrompts(filters: PromptFilters = {}) {
-  const {
-    search,
-    category,
-    tags,
-    isFavorite,
-    sortBy = 'createdAt',
-    sortOrder = 'desc'
-  } = filters;
+  const { sortBy = 'createdAt', sortOrder = 'desc' } = filters;
 
-  const where: Prisma.PromptWhereInput = {};
-
-  // Búsqueda por texto
-  if (search) {
-    where.OR = [
-      { title: { contains: search, mode: 'insensitive' } },
-      { description: { contains: search, mode: 'insensitive' } },
-      { content: { contains: search, mode: 'insensitive' } }
-    ];
-  }
-
-  // Filtro por categoría
-  if (category) {
-    where.category = category;
-  }
-
-  // Filtro por favoritos
-  if (isFavorite !== undefined) {
-    where.isFavorite = isFavorite;
-  }
-
-  // Filtro por tags
-  if (tags && tags.length > 0) {
-    const normalizedTags = tags.map(normalizeTag);
-    where.tags = {
-      some: {
-        tag: {
-          normalizedName: {
-            in: normalizedTags
-          }
-        }
-      }
-    };
-  }
+  const where = buildPromptWhereClause(filters);
 
   // Ordenamiento
   const orderBy: Prisma.PromptOrderByWithRelationInput = {};
@@ -203,7 +184,11 @@ export async function updatePromptAnalysis(
     title?: string;
     description?: string;
     category?: Category;
-    subcategory?: string;
+    subcategory?: string | null;
+    intent?: ImageIntent | null;
+    targets?: ImageTarget[];
+    inputMode?: InputMode | null;
+    preservation?: Preservation | null;
     tags?: string[];
     metadata?: Record<string, any>;
     analysisResult?: Record<string, any>;

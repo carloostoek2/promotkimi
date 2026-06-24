@@ -30,6 +30,37 @@ enum JobStatus {
   FAILED
 }
 
+enum ImageIntent {
+  GENERAR
+  MEJORAR_REALISMO
+  TRANSFORMAR
+  RETOQUE
+  COMPONER
+  DEFINIR_IDENTIDAD
+  MODIFICAR_POSE
+}
+
+enum ImageTarget {
+  ROSTRO
+  PIEL
+  CUERPO
+  ILUMINACION
+  ESCENA_COMPLETA
+  ROPA_TEXTURA
+}
+
+enum InputMode {
+  TEXTO_A_IMAGEN
+  IMAGEN_A_IMAGEN
+  MULTI_IMAGEN
+}
+
+enum Preservation {
+  IDENTIDAD
+  COMPOSICION
+  LIBRE
+}
+
 // ==================== MODELS ====================
 
 model Prompt {
@@ -39,6 +70,10 @@ model Prompt {
   content         String         @db.Text
   category        Category?
   subcategory     String?        @db.VarChar(50)
+  intent          ImageIntent?
+  targets         ImageTarget[]  @default([])
+  inputMode       InputMode?     @map("input_mode")
+  preservation    Preservation?
   metadata        Json?          @db.JsonB
   imageUrl        String?        @db.VarChar(500) @map("image_url")
   thumbnailUrl    String?        @db.VarChar(500) @map("thumbnail_url")
@@ -56,6 +91,9 @@ model Prompt {
   // Indexes
   @@index([category])
   @@index([subcategory])
+  @@index([intent])
+  @@index([inputMode])
+  @@index([preservation])
   @@index([isFavorite])
   @@index([createdAt])
   @@index([updatedAt])

@@ -41,6 +41,10 @@ export async function getPrompts(filters: PromptFilters = {}): Promise<Prompt[]>
   if (filters.category) params.append('category', filters.category);
   if (filters.tags?.length) params.append('tags', filters.tags.join(','));
   if (filters.isFavorite !== undefined) params.append('isFavorite', String(filters.isFavorite));
+  if (filters.intent) params.append('intent', filters.intent);
+  if (filters.target) params.append('target', filters.target);
+  if (filters.inputMode) params.append('inputMode', filters.inputMode);
+  if (filters.preservation) params.append('preservation', filters.preservation);
   if (filters.sortBy) params.append('sortBy', filters.sortBy);
   if (filters.sortOrder) params.append('sortOrder', filters.sortOrder);
 

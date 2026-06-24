@@ -1,4 +1,5 @@
 import { Job } from 'bullmq';
+import { AnalysisStatus } from '@prisma/client';
 import prisma from '../config/database';
 import { analyzePromptWithRetry } from '../services/openRouter.service';
 import { updatePromptAnalysis, markAnalysisFailed } from '../services/prompt.service';
@@ -18,7 +19,7 @@ export async function processAnalysisJob(job: Job<AnalysisJobData>) {
     // Actualizar estado a PROCESSING
     await prisma.prompt.update({
       where: { id: promptId },
-      data: { analysisStatus: 'PROCESSING' }
+      data: { analysisStatus: AnalysisStatus.PROCESSING }
     });
 
     // Llamar a OpenRouter
@@ -32,6 +33,10 @@ export async function processAnalysisJob(job: Job<AnalysisJobData>) {
       description: analysisResult.description,
       category: analysisResult.category,
       subcategory: analysisResult.subcategory,
+      intent: analysisResult.intent ?? null,
+      targets: analysisResult.targets ?? [],
+      inputMode: analysisResult.inputMode ?? null,
+      preservation: analysisResult.preservation ?? null,
       tags: analysisResult.tags,
       metadata: analysisResult.metadata,
       analysisResult: {
