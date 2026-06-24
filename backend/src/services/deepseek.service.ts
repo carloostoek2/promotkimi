@@ -5,7 +5,7 @@ import { parseAnalysisContent } from '../utils/parseAnalysisResponse';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
 const API_KEY = process.env.DEEPSEEK_API_KEY || '';
-const MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-chat';
+const MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
 
 export async function analyzePrompt(promptContent: string): Promise<AnalysisResult> {
   if (!API_KEY) {

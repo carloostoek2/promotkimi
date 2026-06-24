@@ -87,7 +87,7 @@ Backend (`backend/.env`):
 - `DATABASE_URL` - PostgreSQL connection string
 - `REDIS_URL` - Redis connection string
 - `DEEPSEEK_API_KEY` - DeepSeek API key (https://platform.deepseek.com)
-- `DEEPSEEK_MODEL` - Model to use (default: deepseek-chat)
+- `DEEPSEEK_MODEL` - Model to use (default: deepseek-v4-flash; legacy deepseek-chat deprecated 2026-07-24)
 - `PORT` - Server port (default: 3001)
 - `WEB_URL` - Frontend URL for CORS
 - `UPLOAD_DIR` - Upload directory path
