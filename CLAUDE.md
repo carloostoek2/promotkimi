@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-PromptVault is a prompt repository system with automatic AI analysis via OpenRouter. It stores prompts with metadata, categories, and tags, supports image uploads with thumbnail generation, and provides full-text search.
+PromptVault is a prompt repository system with automatic AI analysis via DeepSeek API. It stores prompts with metadata, categories, and tags, supports image uploads with thumbnail generation, and provides full-text search.
 
 ## Tech Stack
 
@@ -66,7 +66,7 @@ backend/prisma/schema.prisma  # Database schema (Prompt, Tag, PromptTag, Analysi
 
 ## Key Integrations
 
-- **OpenRouter**: AI-powered prompt analysis. Configure `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` in backend `.env`
+- **DeepSeek**: AI-powered prompt analysis. Configure `DEEPSEEK_API_KEY` and `DEEPSEEK_MODEL` in backend `.env`
 - **Redis**: Powers the BullMQ job queue for async AI analysis tasks
 - **Sharp**: Generates thumbnails for uploaded prompt images
 
@@ -86,8 +86,8 @@ Frontend (`.env`):
 Backend (`backend/.env`):
 - `DATABASE_URL` - PostgreSQL connection string
 - `REDIS_URL` - Redis connection string
-- `OPENROUTER_API_KEY` - OpenRouter API key
-- `OPENROUTER_MODEL` - Model to use (default: openrouter/auto)
+- `DEEPSEEK_API_KEY` - DeepSeek API key (https://platform.deepseek.com)
+- `DEEPSEEK_MODEL` - Model to use (default: deepseek-chat)
 - `PORT` - Server port (default: 3001)
 - `WEB_URL` - Frontend URL for CORS
 - `UPLOAD_DIR` - Upload directory path

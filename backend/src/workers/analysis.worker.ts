@@ -1,7 +1,7 @@
 import { Job } from 'bullmq';
 import { AnalysisStatus } from '@prisma/client';
 import prisma from '../config/database';
-import { analyzePromptWithRetry } from '../services/openRouter.service';
+import { analyzePromptWithRetry } from '../services/deepseek.service';
 import { updatePromptAnalysis, markAnalysisFailed } from '../services/prompt.service';
 import { AnalysisResult } from '../types';
 
@@ -22,7 +22,7 @@ export async function processAnalysisJob(job: Job<AnalysisJobData>) {
       data: { analysisStatus: AnalysisStatus.PROCESSING }
     });
 
-    // Llamar a OpenRouter
+    // Llamar a DeepSeek
     const analysisResult: AnalysisResult = await analyzePromptWithRetry(content);
 
     console.log(`[Worker] Análisis completado para prompt ${promptId}:`, analysisResult);

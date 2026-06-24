@@ -57,13 +57,16 @@ export interface AnalysisResult {
   confidence: number;
 }
 
-export interface OpenRouterResponse {
+export interface ChatCompletionResponse {
   choices: Array<{
     message: {
       content: string;
     };
   }>;
 }
+
+/** @deprecated Use ChatCompletionResponse */
+export type OpenRouterResponse = ChatCompletionResponse;
 
 // ==================== API RESPONSE TYPES ====================
 

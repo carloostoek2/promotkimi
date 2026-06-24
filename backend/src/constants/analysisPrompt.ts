@@ -1,14 +1,6 @@
-import axios from 'axios';
-import { AnalysisResult, OpenRouterResponse } from '../types';
-import { INTENT_SUBCATEGORIES } from '../constants/intentVocabulary';
-import { sanitizeAnalysisResult } from '../utils/intentValidation';
+import { INTENT_SUBCATEGORIES } from './intentVocabulary';
 
-const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const API_KEY = process.env.OPENROUTER_API_KEY || '';
-const MODEL = process.env.OPENROUTER_MODEL || 'openrouter/auto';
-const WEB_URL = process.env.WEB_URL || 'http://localhost:5173';
-
-const SYSTEM_PROMPT = `Eres un analizador experto de prompts para IA generativa. Tu tarea es analizar prompts y extraer metadata estructurada en formato JSON.
+export const ANALYSIS_SYSTEM_PROMPT = `Eres un analizador experto de prompts para IA generativa. Tu tarea es analizar prompts y extraer metadata estructurada en formato JSON.
 
 REGLAS IMPORTANTES:
 1. Responde ÚNICAMENTE con JSON válido, sin markdown, sin explicaciones
@@ -84,76 +76,3 @@ REFERENCIA SUBCATEGORÍAS (copia exacta):
 ${Object.entries(INTENT_SUBCATEGORIES)
   .map(([intent, subs]) => `- ${intent}: ${subs.join(', ')}`)
   .join('\n')}`;
-
-export async function analyzePrompt(promptContent: string): Promise<AnalysisResult> {
-  if (!API_KEY) {
-    throw new Error('OPENROUTER_API_KEY no está configurada');
-  }
-
-  const response = await axios.post<OpenRouterResponse>(
-    OPENROUTER_API_URL,
-    {
-      model: MODEL,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: `Analiza el siguiente prompt y extrae la metadata estructurada:\n\n---\n${promptContent}\n---` }
-      ],
-      temperature: 0.3,
-      max_tokens: 1200
-    },
-    {
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': WEB_URL,
-        'X-Title': 'PromptVault'
-      },
-      timeout: 30000
-    }
-  );
-
-  const content = response.data.choices[0]?.message?.content;
-  
-  if (!content) {
-    throw new Error('Respuesta vacía de OpenRouter');
-  }
-
-  // Extraer JSON de la respuesta
-  let jsonContent = content;
-  
-  // Si hay markdown code block, extraer solo el JSON
-  const codeBlockMatch = content.match(/```json\n?([\s\S]*?)```/);
-  if (codeBlockMatch) {
-    jsonContent = codeBlockMatch[1].trim();
-  }
-
-  try {
-    const result: AnalysisResult = JSON.parse(jsonContent);
-    return sanitizeAnalysisResult(result);
-  } catch (error) {
-    console.error('Error parseando JSON:', content);
-    throw new Error('Respuesta inválida de OpenRouter: no es JSON válido');
-  }
-}
-
-export async function analyzePromptWithRetry(
-  promptContent: string,
-  maxRetries = 3
-): Promise<AnalysisResult> {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await analyzePrompt(promptContent);
-    } catch (error) {
-      if (attempt === maxRetries) {
-        throw error;
-      }
-      
-      // Backoff exponencial: 1s, 2s, 4s
-      const delay = Math.pow(2, attempt - 1) * 1000;
-      console.log(`Reintentando análisis en ${delay}ms... (intento ${attempt + 1}/${maxRetries})`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-  }
-  
-  throw new Error('Máximo de reintentos excedido');
-}

@@ -5,12 +5,12 @@
  *   - category is IMAGEN or null
  *   - AND (intent is null OR updatedAt is before the intent migration)
  *
- * Runs OpenRouter analysis directly (not via BullMQ) with a 2s delay between
+ * Runs DeepSeek analysis directly (not via BullMQ) with a 2s delay between
  * API calls to respect rate limits.
  *
  * Prerequisites:
  *   - DATABASE_URL set
- *   - OPENROUTER_API_KEY set (for live runs)
+ *   - DEEPSEEK_API_KEY set (for live runs)
  *   - Intent migration applied (`apply-intent-migration.ts` or `prisma migrate deploy`)
  *
  * Usage:
@@ -25,7 +25,7 @@ import { AnalysisStatus, Prisma } from '@prisma/client';
 import dotenv from 'dotenv';
 import path from 'path';
 import prisma from '../src/config/database';
-import { analyzePromptWithRetry } from '../src/services/openRouter.service';
+import { analyzePromptWithRetry } from '../src/services/deepseek.service';
 import { markAnalysisFailed, updatePromptAnalysis } from '../src/services/prompt.service';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -91,8 +91,8 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  if (!options.dryRun && !process.env.OPENROUTER_API_KEY) {
-    console.error('ERROR: OPENROUTER_API_KEY is required for live re-analysis.');
+  if (!options.dryRun && !process.env.DEEPSEEK_API_KEY) {
+    console.error('ERROR: DEEPSEEK_API_KEY is required for live re-analysis.');
     console.error('Use --dry-run to preview candidates without calling the API.');
     process.exit(1);
   }
