@@ -93,13 +93,12 @@ export function FlowFormModal() {
     if (!selectedFlow) return;
     try {
       await addNodeToFlow(selectedFlow.id, { promptId: prompt.id });
-      await fetchFlowById(selectedFlow.id);
       setPickerOpen(false);
       setSearchQuery('');
     } catch {
       showError('Error agregando prompt al flujo');
     }
-  }, [selectedFlow, addNodeToFlow, fetchFlowById, showError]);
+  }, [selectedFlow, addNodeToFlow, showError]);
 
   const handleRemoveNode = useCallback(async (nodeId: string) => {
     if (!selectedFlow) return;
@@ -117,11 +116,10 @@ export function FlowFormModal() {
     [nodeIds[index - 1], nodeIds[index]] = [nodeIds[index], nodeIds[index - 1]];
     try {
       await reorderNodes(selectedFlow.id, { nodeIds });
-      await fetchFlowById(selectedFlow.id);
     } catch {
       showError('Error reordenando nodos');
     }
-  }, [selectedFlow, reorderNodes, fetchFlowById, showError]);
+  }, [selectedFlow, reorderNodes, showError]);
 
   const handleMoveDown = useCallback(async (index: number) => {
     if (!selectedFlow || index >= selectedFlow.nodes.length - 1) return;
@@ -129,11 +127,10 @@ export function FlowFormModal() {
     [nodeIds[index], nodeIds[index + 1]] = [nodeIds[index + 1], nodeIds[index]];
     try {
       await reorderNodes(selectedFlow.id, { nodeIds });
-      await fetchFlowById(selectedFlow.id);
     } catch {
       showError('Error reordenando nodos');
     }
-  }, [selectedFlow, reorderNodes, fetchFlowById, showError]);
+  }, [selectedFlow, reorderNodes, showError]);
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {

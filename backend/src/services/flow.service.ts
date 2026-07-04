@@ -125,14 +125,21 @@ export async function removeNodeFromFlow(flowId: string, nodeId: string) {
 }
 
 export async function reorderNodes(flowId: string, nodeIds: string[]) {
-  await prisma.$transaction(
-    nodeIds.map((nodeId, index) =>
-      prisma.flowNode.update({
-        where: { id: nodeId },
-        data: { position: index + 1 },
-      })
-    )
-  );
+  // Two-phase update avoids @@unique([flowId, position]) conflicts when swapping positions
+  await prisma.$transaction(async (tx) => {
+    for (let i = 0; i < nodeIds.length; i++) {
+      await tx.flowNode.update({
+        where: { id: nodeIds[i] },
+        data: { position: -(i + 1) },
+      });
+    }
+    for (let i = 0; i < nodeIds.length; i++) {
+      await tx.flowNode.update({
+        where: { id: nodeIds[i] },
+        data: { position: i + 1 },
+      });
+    }
+  });
 
   return getFlowById(flowId);
 }

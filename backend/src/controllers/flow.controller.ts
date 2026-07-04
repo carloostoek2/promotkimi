@@ -116,7 +116,8 @@ export async function addNodeToFlow(req: Request, res: Response) {
       return res.status(404).json({ success: false, error: 'Flujo no encontrado' });
     }
 
-    const updatedFlow = await flowService.addNodeToFlow(req.params.id, validation.data);
+    await flowService.addNodeToFlow(req.params.id, validation.data);
+    const updatedFlow = await flowService.getFlowById(req.params.id);
     return res.status(201).json({ success: true, data: updatedFlow, message: 'Nodo agregado exitosamente' });
   } catch (error) {
     console.error('Error adding node:', error);

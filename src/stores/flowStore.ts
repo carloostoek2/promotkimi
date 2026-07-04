@@ -109,7 +109,10 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const updated = await api.addNodeToFlow(flowId, input);
-      set({ selectedFlow: updated, isLoading: false });
+      set(state => ({
+        selectedFlow: state.selectedFlow?.id === flowId ? updated : state.selectedFlow,
+        isLoading: false,
+      }));
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Error agregando nodo',
@@ -123,7 +126,10 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const updated = await api.reorderNodes(flowId, input);
-      set({ selectedFlow: updated, isLoading: false });
+      set(state => ({
+        selectedFlow: state.selectedFlow?.id === flowId ? updated : state.selectedFlow,
+        isLoading: false,
+      }));
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Error reordenando nodos',
