@@ -1,11 +1,32 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Request, Response } from 'express';
-import { getPrompts, updatePrompt } from '../controllers/prompt.controller';
+import {
+  getPrompts,
+  updatePrompt,
+  updatePromptImage,
+  deletePrompt,
+} from '../controllers/prompt.controller';
 import * as promptService from '../services/prompt.service';
+import * as imageService from '../services/image.service';
+import * as versionService from '../services/version.service';
 import { Category, ImageIntent, ImageTarget, InputMode, Preservation } from '@prisma/client';
 
 vi.mock('../config/queue', () => ({
   queueAnalysis: vi.fn(),
+}));
+
+vi.mock('../services/image.service', () => ({
+  processImage: vi.fn(),
+  deleteImage: vi.fn(),
+  deleteImages: vi.fn(),
+}));
+
+vi.mock('../services/version.service', () => ({
+  collectImageUrlsForPrompt: vi.fn(),
+  safeDeleteImages: vi.fn(),
+  maybeCapture: vi.fn(),
+  listVersions: vi.fn(),
+  getVersion: vi.fn(),
 }));
 
 function createMockResponse() {
@@ -468,6 +489,115 @@ describe('updatePrompt intent/category coherence', () => {
       expect.objectContaining({
         success: true,
       })
+    );
+  });
+});
+
+describe('updatePromptImage version-aware GC', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('saves new image then GC old URLs without eager delete before update', async () => {
+    const existing = {
+      id: 'p1',
+      imageUrl: '/uploads/old.webp',
+      thumbnailUrl: '/uploads/old-thumb.webp',
+    };
+    const updated = {
+      id: 'p1',
+      imageUrl: '/uploads/new.webp',
+      thumbnailUrl: '/uploads/new-thumb.webp',
+    };
+
+    vi.spyOn(promptService, 'getPromptById').mockResolvedValue(existing as never);
+    vi.spyOn(promptService, 'updatePromptImages').mockResolvedValue(updated as never);
+    vi.mocked(imageService.processImage).mockResolvedValue({
+      originalUrl: '/uploads/new.webp',
+      thumbnailUrl: '/uploads/new-thumb.webp',
+      filename: 'new',
+    });
+    vi.mocked(versionService.safeDeleteImages).mockResolvedValue(undefined);
+
+    const req = {
+      params: { id: 'p1' },
+      file: { buffer: Buffer.from('x'), mimetype: 'image/png', originalname: 'x.png', size: 10 },
+    } as unknown as Request;
+    const res = createMockResponse();
+
+    await updatePromptImage(req, res);
+
+    expect(imageService.deleteImages).not.toHaveBeenCalled();
+    expect(promptService.updatePromptImages).toHaveBeenCalledWith(
+      'p1',
+      '/uploads/new.webp',
+      '/uploads/new-thumb.webp'
+    );
+    expect(versionService.safeDeleteImages).toHaveBeenCalledWith([
+      '/uploads/old.webp',
+      '/uploads/old-thumb.webp',
+    ]);
+    // GC runs after DB update
+    const updateOrder = vi.mocked(promptService.updatePromptImages).mock.invocationCallOrder[0];
+    const gcOrder = vi.mocked(versionService.safeDeleteImages).mock.invocationCallOrder[0];
+    expect(gcOrder).toBeGreaterThan(updateOrder);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true, data: updated })
+    );
+  });
+});
+
+describe('deletePrompt version-aware GC', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('collects URLs, deletes DB first, then safe-deletes collected images', async () => {
+    const existing = {
+      id: 'p1',
+      imageUrl: '/uploads/live.webp',
+      thumbnailUrl: '/uploads/live-thumb.webp',
+    };
+    const collected = [
+      '/uploads/live.webp',
+      '/uploads/live-thumb.webp',
+      '/uploads/v1.webp',
+    ];
+
+    vi.spyOn(promptService, 'getPromptById').mockResolvedValue(existing as never);
+    vi.spyOn(promptService, 'deletePrompt').mockResolvedValue(existing as never);
+    vi.mocked(versionService.collectImageUrlsForPrompt).mockResolvedValue(collected);
+    vi.mocked(versionService.safeDeleteImages).mockResolvedValue(undefined);
+
+    const req = { params: { id: 'p1' } } as unknown as Request;
+    const res = createMockResponse();
+
+    await deletePrompt(req, res);
+
+    expect(versionService.collectImageUrlsForPrompt).toHaveBeenCalledWith('p1');
+    expect(promptService.deletePrompt).toHaveBeenCalledWith('p1');
+    expect(versionService.safeDeleteImages).toHaveBeenCalledWith(collected);
+    expect(imageService.deleteImages).not.toHaveBeenCalled();
+
+    const collectOrder = vi.mocked(versionService.collectImageUrlsForPrompt).mock
+      .invocationCallOrder[0];
+    const deleteOrder = vi.mocked(promptService.deletePrompt).mock.invocationCallOrder[0];
+    const gcOrder = vi.mocked(versionService.safeDeleteImages).mock.invocationCallOrder[0];
+    expect(collectOrder).toBeLessThan(deleteOrder);
+    expect(deleteOrder).toBeLessThan(gcOrder);
+
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true })
     );
   });
 });

@@ -8,6 +8,7 @@ import {
   VersionChangeReason,
 } from '@prisma/client';
 import prisma from '../config/database';
+import { deleteImage } from './image.service';
 
 // ==================== TYPES ====================
 
@@ -319,4 +320,88 @@ export async function getVersion(promptId: string, version: number) {
       promptId_version: { promptId, version },
     },
   });
+}
+
+// ==================== IMAGE GC ====================
+
+/**
+ * Returns true if any live Prompt or PromptVersion still references the URL
+ * as imageUrl or thumbnailUrl. Optionally exclude one prompt (and its versions).
+ */
+export async function isImageReferenced(
+  url: string,
+  excludePromptId?: string
+): Promise<boolean> {
+  if (!url) {
+    return false;
+  }
+
+  const promptWhere: Prisma.PromptWhereInput = {
+    OR: [{ imageUrl: url }, { thumbnailUrl: url }],
+    ...(excludePromptId ? { NOT: { id: excludePromptId } } : {}),
+  };
+
+  const versionWhere: Prisma.PromptVersionWhereInput = {
+    OR: [{ imageUrl: url }, { thumbnailUrl: url }],
+    ...(excludePromptId ? { NOT: { promptId: excludePromptId } } : {}),
+  };
+
+  const liveHit = await prisma.prompt.findFirst({
+    where: promptWhere,
+    select: { id: true },
+  });
+  if (liveHit) {
+    return true;
+  }
+
+  const versionHit = await prisma.promptVersion.findFirst({
+    where: versionWhere,
+    select: { id: true },
+  });
+  return versionHit !== null;
+}
+
+/** Collect unique image/thumbnail URLs from live prompt + all its versions. */
+export async function collectImageUrlsForPrompt(promptId: string): Promise<string[]> {
+  const prompt = await prisma.prompt.findUnique({
+    where: { id: promptId },
+    select: { imageUrl: true, thumbnailUrl: true },
+  });
+
+  if (!prompt) {
+    return [];
+  }
+
+  const versions = await prisma.promptVersion.findMany({
+    where: { promptId },
+    select: { imageUrl: true, thumbnailUrl: true },
+  });
+
+  const urls = new Set<string>();
+  if (prompt.imageUrl) urls.add(prompt.imageUrl);
+  if (prompt.thumbnailUrl) urls.add(prompt.thumbnailUrl);
+  for (const v of versions) {
+    if (v.imageUrl) urls.add(v.imageUrl);
+    if (v.thumbnailUrl) urls.add(v.thumbnailUrl);
+  }
+  return Array.from(urls);
+}
+
+/**
+ * Unlink only URLs that have zero remaining references in Prompt or PromptVersion.
+ * Null/empty entries are ignored.
+ */
+export async function safeDeleteImages(
+  urls: Array<string | null | undefined>
+): Promise<void> {
+  const unique = Array.from(
+    new Set(urls.filter((u): u is string => typeof u === 'string' && u.length > 0))
+  );
+
+  for (const url of unique) {
+    const referenced = await isImageReferenced(url);
+    if (!referenced) {
+      await deleteImage(url);
+    }
+  }
 }
