@@ -9,6 +9,10 @@ import {
   toggleFavorite,
   updatePromptImage
 } from '../controllers/prompt.controller';
+import {
+  listPromptVersions,
+  getPromptVersion,
+} from '../controllers/version.controller';
 
 const router = Router();
 
@@ -23,6 +27,9 @@ const upload = multer({
 // Routes
 router.post('/', upload.single('image'), createPrompt);
 router.get('/', getPrompts);
+// Version routes must be registered before /:id to avoid param conflicts
+router.get('/:id/versions', listPromptVersions);
+router.get('/:id/versions/:version', getPromptVersion);
 router.get('/:id', getPromptById);
 router.put('/:id', updatePrompt);
 router.delete('/:id', deletePrompt);
