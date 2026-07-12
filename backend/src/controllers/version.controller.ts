@@ -59,3 +59,47 @@ export async function getPromptVersion(req: Request, res: Response) {
     });
   }
 }
+
+export async function restorePromptVersion(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const versionNumber = Number.parseInt(req.params.version, 10);
+
+    if (!Number.isInteger(versionNumber) || versionNumber < 1) {
+      return res.status(400).json({
+        success: false,
+        error: 'Número de versión inválido',
+      });
+    }
+
+    // Restore applies snapshot + appends RESTORE version; never queues AI
+    const liveHead = await versionService.restoreVersion(id, versionNumber);
+
+    return res.json({
+      success: true,
+      data: liveHead,
+      message: 'Versión restaurada exitosamente',
+    });
+  } catch (error) {
+    const statusCode =
+      typeof error === 'object' &&
+      error !== null &&
+      'statusCode' in error &&
+      typeof (error as { statusCode: unknown }).statusCode === 'number'
+        ? (error as { statusCode: number }).statusCode
+        : undefined;
+
+    if (statusCode === 404) {
+      return res.status(404).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'No encontrado',
+      });
+    }
+
+    console.error('Error restoring prompt version:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Error interno del servidor',
+    });
+  }
+}

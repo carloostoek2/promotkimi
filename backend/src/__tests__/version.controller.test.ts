@@ -1,11 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Request, Response } from 'express';
-import { listPromptVersions, getPromptVersion } from '../controllers/version.controller';
+import {
+  listPromptVersions,
+  getPromptVersion,
+  restorePromptVersion,
+} from '../controllers/version.controller';
 import * as versionService from '../services/version.service';
+import * as queueModule from '../config/queue';
 
 vi.mock('../services/version.service', () => ({
   listVersions: vi.fn(),
   getVersion: vi.fn(),
+  restoreVersion: vi.fn(),
+}));
+
+vi.mock('../config/queue', () => ({
+  queueAnalysis: vi.fn(),
 }));
 
 function createMockResponse() {
@@ -148,5 +158,88 @@ describe('getPromptVersion', () => {
       error: expect.stringMatching(/versión|version/i),
     });
     expect(versionService.getVersion).not.toHaveBeenCalled();
+  });
+});
+
+describe('restorePromptVersion', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('returns 200 with live head after restore and does not queue analysis', async () => {
+    const liveHead = {
+      id: 'p1',
+      content: 'Restored content',
+      isFavorite: true,
+      analysisStatus: 'COMPLETED',
+      tags: [],
+    };
+    vi.mocked(versionService.restoreVersion).mockResolvedValue(liveHead as never);
+
+    const req = { params: { id: 'p1', version: '2' } } as unknown as Request;
+    const res = createMockResponse();
+
+    await restorePromptVersion(req, res);
+
+    expect(versionService.restoreVersion).toHaveBeenCalledWith('p1', 2);
+    expect(queueModule.queueAnalysis).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({
+      success: true,
+      data: liveHead,
+      message: expect.stringMatching(/restaurad/i),
+    });
+  });
+
+  it('returns 404 when version is missing', async () => {
+    vi.mocked(versionService.restoreVersion).mockRejectedValue(
+      Object.assign(new Error('Versión no encontrada'), { statusCode: 404 })
+    );
+
+    const req = { params: { id: 'p1', version: '99' } } as unknown as Request;
+    const res = createMockResponse();
+
+    await restorePromptVersion(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: expect.stringMatching(/versión|version/i),
+    });
+  });
+
+  it('returns 404 when prompt is missing', async () => {
+    vi.mocked(versionService.restoreVersion).mockRejectedValue(
+      Object.assign(new Error('Prompt no encontrado'), { statusCode: 404 })
+    );
+
+    const req = { params: { id: 'missing', version: '1' } } as unknown as Request;
+    const res = createMockResponse();
+
+    await restorePromptVersion(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: expect.stringMatching(/prompt|no encontrado/i),
+    });
+  });
+
+  it('returns 400 for non-integer version param', async () => {
+    const req = { params: { id: 'p1', version: 'abc' } } as unknown as Request;
+    const res = createMockResponse();
+
+    await restorePromptVersion(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({
+      success: false,
+      error: expect.stringMatching(/versión|version/i),
+    });
+    expect(versionService.restoreVersion).not.toHaveBeenCalled();
   });
 });

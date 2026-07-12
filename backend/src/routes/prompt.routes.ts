@@ -12,6 +12,7 @@ import {
 import {
   listPromptVersions,
   getPromptVersion,
+  restorePromptVersion,
 } from '../controllers/version.controller';
 
 const router = Router();
@@ -30,6 +31,7 @@ router.get('/', getPrompts);
 // Version routes must be registered before /:id to avoid param conflicts
 router.get('/:id/versions', listPromptVersions);
 router.get('/:id/versions/:version', getPromptVersion);
+router.post('/:id/versions/:version/restore', restorePromptVersion);
 router.get('/:id', getPromptById);
 router.put('/:id', updatePrompt);
 router.delete('/:id', deletePrompt);
