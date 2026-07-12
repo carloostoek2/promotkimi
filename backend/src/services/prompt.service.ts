@@ -3,13 +3,14 @@ import prisma from '../config/database';
 import { CreatePromptInput, UpdatePromptInput, PromptFilters } from '../types';
 import { buildPromptWhereClause } from '../utils/promptFilters';
 import { sanitizePromptUpdate, PromptUpdateExisting } from '../utils/intentValidation';
+import { maybeCapture } from './version.service';
 
 // ==================== CRUD OPERATIONS ====================
 
 export async function createPrompt(data: CreatePromptInput) {
   const { content, analyzeWithAI = true } = data;
 
-  return prisma.prompt.create({
+  const prompt = await prisma.prompt.create({
     data: {
       content,
       analysisStatus: analyzeWithAI ? AnalysisStatus.PENDING : AnalysisStatus.COMPLETED,
@@ -22,6 +23,9 @@ export async function createPrompt(data: CreatePromptInput) {
       }
     }
   });
+
+  await maybeCapture(prompt.id, 'CREATE');
+  return prompt;
 }
 
 export async function getPromptById(id: string) {
@@ -87,7 +91,7 @@ export async function updatePrompt(
     const createdTags = await Promise.all(tagOperations);
 
     // Actualizar prompt y conectar tags
-    return prisma.prompt.update({
+    const updated = await prisma.prompt.update({
       where: { id },
       data: {
         ...promptData,
@@ -105,10 +109,13 @@ export async function updatePrompt(
         }
       }
     });
+
+    await maybeCapture(id, 'UPDATE');
+    return updated;
   }
 
   // Actualizar sin tags
-  return prisma.prompt.update({
+  const updated = await prisma.prompt.update({
     where: { id },
     data: promptData,
     include: {
@@ -119,6 +126,9 @@ export async function updatePrompt(
       }
     }
   });
+
+  await maybeCapture(id, 'UPDATE');
+  return updated;
 }
 
 export async function deletePrompt(id: string) {
@@ -276,7 +286,7 @@ export async function updatePromptImages(
   imageUrl: string | null,
   thumbnailUrl: string | null
 ) {
-  return prisma.prompt.update({
+  const updated = await prisma.prompt.update({
     where: { id },
     data: {
       imageUrl,
@@ -290,6 +300,9 @@ export async function updatePromptImages(
       }
     }
   });
+
+  await maybeCapture(id, 'IMAGE');
+  return updated;
 }
 
 // ==================== UTILS ====================
