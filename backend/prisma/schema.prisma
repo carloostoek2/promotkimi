@@ -61,6 +61,14 @@ enum Preservation {
   LIBRE
 }
 
+enum VersionChangeReason {
+  CREATE
+  UPDATE
+  IMAGE
+  ANALYSIS
+  RESTORE
+}
+
 // ==================== MODELS ====================
 
 model Prompt {
@@ -87,6 +95,7 @@ model Prompt {
   tags            PromptTag[]
   analysisJobs    AnalysisJob[]
   flowNodes       FlowNode[]
+  versions        PromptVersion[]
 
   // Indexes
   @@index([category])
@@ -99,6 +108,34 @@ model Prompt {
   @@index([updatedAt])
   @@index([analysisStatus])
   @@map("prompts")
+}
+
+model PromptVersion {
+  id              String              @id @default(uuid())
+  promptId        String              @map("prompt_id")
+  version         Int
+  changeReason    VersionChangeReason @map("change_reason")
+  title           String?             @db.VarChar(200)
+  description     String?             @db.Text
+  content         String              @db.Text
+  category        Category?
+  subcategory     String?             @db.VarChar(50)
+  intent          ImageIntent?
+  targets         ImageTarget[]       @default([])
+  inputMode       InputMode?          @map("input_mode")
+  preservation    Preservation?
+  metadata        Json?               @db.JsonB
+  tags            Json                @db.JsonB
+  imageUrl        String?             @db.VarChar(500) @map("image_url")
+  thumbnailUrl    String?             @db.VarChar(500) @map("thumbnail_url")
+  analysisResult  Json?               @db.JsonB @map("analysis_result")
+  createdAt       DateTime            @default(now()) @map("created_at")
+
+  prompt          Prompt              @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+  @@unique([promptId, version])
+  @@index([promptId, createdAt])
+  @@map("prompt_versions")
 }
 
 model Tag {
