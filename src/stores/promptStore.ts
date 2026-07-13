@@ -19,7 +19,8 @@ interface PromptState {
   updatePrompt: (id: string, input: UpdatePromptInput) => Promise<void>;
   deletePrompt: (id: string) => Promise<void>;
   toggleFavorite: (id: string) => Promise<void>;
-  
+  restorePromptVersion: (id: string, version: number) => Promise<Prompt>;
+
   // Filter actions
   setFilters: (filters: Partial<PromptFilters>) => void;
   resetFilters: () => void;
@@ -138,6 +139,27 @@ export const usePromptStore = create<PromptState>((set, get) => ({
       set({ 
         error: error instanceof Error ? error.message : 'Error actualizando favorito'
       });
+    }
+  },
+
+  // Restore a historical version onto the live head (does not set isLoading /
+  // analysis spinner — restore never re-queues AI).
+  restorePromptVersion: async (id: string, version: number) => {
+    try {
+      const updated = await api.restorePromptVersion(id, version);
+      set(state => ({
+        prompts: state.prompts.map(p => (p.id === id ? updated : p)),
+        selectedPrompt:
+          state.selectedPrompt?.id === id ? updated : state.selectedPrompt,
+        error: null,
+      }));
+      return updated;
+    } catch (error) {
+      set({
+        error:
+          error instanceof Error ? error.message : 'Error restaurando versión',
+      });
+      throw error;
     }
   },
 

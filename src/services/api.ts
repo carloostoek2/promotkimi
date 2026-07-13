@@ -1,4 +1,19 @@
-import type { Prompt, CreatePromptInput, UpdatePromptInput, PromptFilters, ApiResponse, Tag, Flow, FlowWithNodes, CreateFlowInput, UpdateFlowInput, AddNodeInput, ReorderNodesInput } from '@/types';
+import type {
+  Prompt,
+  CreatePromptInput,
+  UpdatePromptInput,
+  PromptFilters,
+  ApiResponse,
+  Tag,
+  Flow,
+  FlowWithNodes,
+  CreateFlowInput,
+  UpdateFlowInput,
+  AddNodeInput,
+  ReorderNodesInput,
+  VersionSummary,
+  PromptVersionDetail,
+} from '@/types';
 
 const API_URL = import.meta.env.PROD ? '' : 'http://localhost:3001';
 
@@ -112,6 +127,36 @@ export async function updatePromptImage(id: string, image: File): Promise<Prompt
   });
   
   if (!response.data) throw new Error('Error actualizando imagen');
+  return response.data;
+}
+
+// ==================== VERSION API ====================
+
+export async function listPromptVersions(id: string): Promise<VersionSummary[]> {
+  const response = await fetchApi<VersionSummary[]>(`/api/prompts/${id}/versions`);
+  return response.data || [];
+}
+
+export async function getPromptVersion(
+  id: string,
+  version: number
+): Promise<PromptVersionDetail> {
+  const response = await fetchApi<PromptVersionDetail>(
+    `/api/prompts/${id}/versions/${version}`
+  );
+  if (!response.data) throw new Error('Versión no encontrada');
+  return response.data;
+}
+
+export async function restorePromptVersion(
+  id: string,
+  version: number
+): Promise<Prompt> {
+  const response = await fetchApi<Prompt>(
+    `/api/prompts/${id}/versions/${version}/restore`,
+    { method: 'POST' }
+  );
+  if (!response.data) throw new Error('Error restaurando versión');
   return response.data;
 }
 

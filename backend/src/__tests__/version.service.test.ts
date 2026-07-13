@@ -366,8 +366,9 @@ describe('listVersions', () => {
 
     const result = await listVersions('p1');
 
-    expect(result).toHaveLength(3);
-    expect(result.map((v) => v.version)).toEqual([3, 2, 1]);
+    expect(result).not.toBeNull();
+    expect(result!).toHaveLength(3);
+    expect(result!.map((v) => v.version)).toEqual([3, 2, 1]);
     expect(mockedPrisma.promptVersion.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { promptId: 'p1' },

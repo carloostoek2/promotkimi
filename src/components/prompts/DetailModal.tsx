@@ -1,5 +1,19 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { X, Heart, Copy, Pencil, Trash2, Image as ImageIcon, Loader2, ChevronLeft, ChevronRight, GitBranch } from 'lucide-react';
+import {
+  X,
+  Heart,
+  Copy,
+  Pencil,
+  Trash2,
+  Image as ImageIcon,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  GitBranch,
+  History,
+  RotateCcw,
+} from 'lucide-react';
 import { usePromptStore } from '@/stores/promptStore';
 import { useUIStore } from '@/stores/uiStore';
 import {
@@ -8,8 +22,9 @@ import {
   TARGET_CONFIG,
   INPUT_MODE_CONFIG,
   PRESERVATION_CONFIG,
+  VERSION_CHANGE_REASON_CONFIG,
 } from '@/types';
-import type { Flow } from '@/types';
+import type { Flow, PromptVersionDetail, VersionSummary } from '@/types';
 import * as api from '@/services/api';
 
 const SWIPE_THRESHOLD = 50;
@@ -20,6 +35,7 @@ export function DetailModal() {
     fetchPromptById,
     toggleFavorite,
     deletePrompt,
+    restorePromptVersion,
     isLoading
   } = usePromptStore();
   const {
@@ -41,14 +57,107 @@ export function DetailModal() {
   const [promptFlows, setPromptFlows] = useState<Flow[]>([]);
   const { openFlowViewModal } = useUIStore();
 
+  // Version history (local UI state — only needed inside detail UX)
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [versions, setVersions] = useState<VersionSummary[]>([]);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [versionsError, setVersionsError] = useState<string | null>(null);
+  const [selectedVersionNumber, setSelectedVersionNumber] = useState<number | null>(null);
+  const [versionDetail, setVersionDetail] = useState<PromptVersionDetail | null>(null);
+  const [versionDetailLoading, setVersionDetailLoading] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+
+  const loadVersions = useCallback(async (promptId: string) => {
+    setVersionsLoading(true);
+    setVersionsError(null);
+    try {
+      const list = await api.listPromptVersions(promptId);
+      setVersions(list);
+    } catch (error) {
+      setVersions([]);
+      setVersionsError(
+        error instanceof Error ? error.message : 'Error cargando historial'
+      );
+    } finally {
+      setVersionsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (detailModalOpen && selectedPromptId) {
       fetchPromptById(selectedPromptId);
       api.getFlows(selectedPromptId).then(setPromptFlows).catch(() => setPromptFlows([]));
+      // Reset history selection when switching prompts; load list for timeline
+      setHistoryOpen(false);
+      setSelectedVersionNumber(null);
+      setVersionDetail(null);
+      setVersionsError(null);
+      void loadVersions(selectedPromptId);
     } else {
       setPromptFlows([]);
+      setVersions([]);
+      setSelectedVersionNumber(null);
+      setVersionDetail(null);
+      setHistoryOpen(false);
+      setVersionsError(null);
     }
-  }, [detailModalOpen, selectedPromptId, fetchPromptById]);
+  }, [detailModalOpen, selectedPromptId, fetchPromptById, loadVersions]);
+
+  const handleSelectVersion = async (version: number) => {
+    if (!selectedPromptId) return;
+    if (selectedVersionNumber === version) {
+      // Toggle off preview
+      setSelectedVersionNumber(null);
+      setVersionDetail(null);
+      return;
+    }
+
+    setSelectedVersionNumber(version);
+    setVersionDetailLoading(true);
+    try {
+      const detail = await api.getPromptVersion(selectedPromptId, version);
+      setVersionDetail(detail);
+    } catch (error) {
+      setVersionDetail(null);
+      showError(
+        error instanceof Error ? error.message : 'Error cargando versión'
+      );
+    } finally {
+      setVersionDetailLoading(false);
+    }
+  };
+
+  const handleRestoreVersion = async () => {
+    if (!selectedPromptId || selectedVersionNumber == null) return;
+
+    if (
+      !confirm(
+        `¿Restaurar la versión ${selectedVersionNumber}? El contenido actual se reemplazará y se creará una nueva entrada en el historial.`
+      )
+    ) {
+      return;
+    }
+
+    setRestoring(true);
+    const toastId = showLoading('Restaurando versión...');
+    try {
+      // Store action updates selectedPrompt/prompts without isLoading /
+      // analysis spinner — restore never re-queues AI.
+      await restorePromptVersion(selectedPromptId, selectedVersionNumber);
+      removeToast(toastId);
+      showSuccess('Versión restaurada exitosamente');
+      setSelectedVersionNumber(null);
+      setVersionDetail(null);
+      await loadVersions(selectedPromptId);
+    } catch (error) {
+      removeToast(toastId);
+      showError(
+        error instanceof Error ? error.message : 'Error restaurando versión'
+      );
+    } finally {
+      setRestoring(false);
+    }
+  };
 
   const currentIndex = prompts.findIndex(p => p.id === selectedPromptId);
   const prevPromptId = currentIndex > 0 ? prompts[currentIndex - 1].id : null;
@@ -187,6 +296,13 @@ export function DetailModal() {
       prompt.inputMode ||
       prompt.preservation ||
       prompt.subcategory);
+
+  const previewCategoryConfig = versionDetail?.category
+    ? CATEGORY_CONFIG[versionDetail.category]
+    : null;
+  const previewIntentConfig = versionDetail?.intent
+    ? INTENT_CONFIG[versionDetail.intent]
+    : null;
 
   return (
     <div
@@ -439,6 +555,251 @@ export function DetailModal() {
                   </div>
                 </div>
               )}
+
+              {/* Version History */}
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setHistoryOpen((open) => !open)}
+                  className="w-full flex items-center justify-between gap-2
+                             text-sm font-medium text-[#71717A] uppercase tracking-wider
+                             hover:text-white transition-colors"
+                  aria-expanded={historyOpen}
+                >
+                  <span className="flex items-center gap-2">
+                    <History className="w-4 h-4" />
+                    Historial
+                    {!versionsLoading && versions.length > 0 && (
+                      <span className="normal-case tracking-normal text-xs text-[#52525B] tabular-nums">
+                        ({versions.length})
+                      </span>
+                    )}
+                  </span>
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform ${historyOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {historyOpen && (
+                  <div className="space-y-3 rounded-xl border border-[#2A2A3A] bg-[#12121A] p-3">
+                    {versionsLoading ? (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="w-5 h-5 animate-spin text-[#8B5CF6]" />
+                      </div>
+                    ) : versionsError ? (
+                      <p className="text-sm text-[#EF4444] text-center py-4">
+                        {versionsError}
+                      </p>
+                    ) : versions.length === 0 ? (
+                      <div className="text-center py-6 space-y-1">
+                        <p className="text-sm text-[#A1A1AA]">Sin historial aún</p>
+                        <p className="text-xs text-[#52525B]">
+                          Las versiones aparecerán cuando se edite este prompt
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <ul className="space-y-2">
+                          {versions.map((entry) => {
+                            const isSelected = selectedVersionNumber === entry.version;
+                            const reasonLabel =
+                              VERSION_CHANGE_REASON_CONFIG[entry.changeReason]?.label ??
+                              entry.changeReason;
+                            return (
+                              <li key={entry.version}>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleSelectVersion(entry.version)}
+                                  className={`w-full text-left p-3 rounded-lg border transition-all ${
+                                    isSelected
+                                      ? 'border-[#8B5CF6] bg-[#8B5CF6]/10'
+                                      : 'border-[#2A2A3A] bg-[#1A1A24] hover:border-[#3A3A4A]'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-sm font-medium text-white">
+                                      v{entry.version}
+                                      {entry.title ? (
+                                        <span className="ml-2 font-normal text-[#A1A1AA]">
+                                          {entry.title}
+                                        </span>
+                                      ) : null}
+                                    </span>
+                                    <span className="text-xs px-2 py-0.5 rounded-full bg-[#2A2A3A] text-[#A1A1AA]">
+                                      {reasonLabel}
+                                    </span>
+                                  </div>
+                                  <p className="mt-1 text-xs text-[#52525B]">
+                                    {new Date(entry.createdAt).toLocaleString('es-ES')}
+                                  </p>
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+
+                        {/* Read-only version preview */}
+                        {selectedVersionNumber != null && (
+                          <div className="mt-2 space-y-3 border-t border-[#2A2A3A] pt-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <h4 className="text-xs font-medium text-[#71717A] uppercase tracking-wider">
+                                Vista previa · v{selectedVersionNumber}
+                              </h4>
+                              <button
+                                type="button"
+                                onClick={() => void handleRestoreVersion()}
+                                disabled={restoring || versionDetailLoading || !versionDetail}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+                                           bg-[#8B5CF6]/15 text-[#C4B5FD] border border-[#8B5CF6]/40
+                                           hover:bg-[#8B5CF6]/25 disabled:opacity-50 disabled:cursor-not-allowed
+                                           transition-colors"
+                              >
+                                {restoring ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                )}
+                                Restaurar
+                              </button>
+                            </div>
+
+                            {versionDetailLoading ? (
+                              <div className="flex items-center justify-center py-6">
+                                <Loader2 className="w-5 h-5 animate-spin text-[#8B5CF6]" />
+                              </div>
+                            ) : versionDetail ? (
+                              <div className="space-y-3">
+                                {versionDetail.imageUrl ? (
+                                  <div className="rounded-lg overflow-hidden">
+                                    <img
+                                      src={versionDetail.imageUrl}
+                                      alt={versionDetail.title || `Versión ${versionDetail.version}`}
+                                      className="w-full max-h-48 object-cover"
+                                      draggable={false}
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="aspect-video max-h-32 rounded-lg bg-[#1A1A24] flex items-center justify-center">
+                                    <ImageIcon className="w-10 h-10 text-[#3A3A4A]" />
+                                  </div>
+                                )}
+
+                                <div>
+                                  {previewCategoryConfig && (
+                                    <span
+                                      className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-gradient-to-r ${previewCategoryConfig.gradient} text-white mb-2`}
+                                    >
+                                      {previewCategoryConfig.label}
+                                    </span>
+                                  )}
+                                  <p className="text-sm font-medium text-white">
+                                    {versionDetail.title || 'Sin título'}
+                                  </p>
+                                  {versionDetail.description && (
+                                    <p className="mt-1 text-xs text-[#A1A1AA]">
+                                      {versionDetail.description}
+                                    </p>
+                                  )}
+                                </div>
+
+                                <div className="p-3 bg-[#1A1A24] rounded-lg">
+                                  <p className="text-xs text-white font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
+                                    {versionDetail.content}
+                                  </p>
+                                </div>
+
+                                {(previewIntentConfig ||
+                                  versionDetail.targets?.length > 0 ||
+                                  versionDetail.inputMode ||
+                                  versionDetail.preservation ||
+                                  versionDetail.subcategory) && (
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {previewIntentConfig && (
+                                      <div className="p-2 bg-[#1A1A24] rounded-lg">
+                                        <p className="text-[10px] text-[#71717A]">Intención</p>
+                                        <p className="text-xs text-white">{previewIntentConfig.label}</p>
+                                      </div>
+                                    )}
+                                    {versionDetail.targets?.length > 0 && (
+                                      <div className="p-2 bg-[#1A1A24] rounded-lg">
+                                        <p className="text-[10px] text-[#71717A]">Objetivos</p>
+                                        <p className="text-xs text-white">
+                                          {versionDetail.targets
+                                            .map((t) => TARGET_CONFIG[t]?.label ?? t)
+                                            .join(', ')}
+                                        </p>
+                                      </div>
+                                    )}
+                                    {versionDetail.inputMode && (
+                                      <div className="p-2 bg-[#1A1A24] rounded-lg">
+                                        <p className="text-[10px] text-[#71717A]">Modo de entrada</p>
+                                        <p className="text-xs text-white">
+                                          {INPUT_MODE_CONFIG[versionDetail.inputMode]?.label ??
+                                            versionDetail.inputMode}
+                                        </p>
+                                      </div>
+                                    )}
+                                    {versionDetail.preservation && (
+                                      <div className="p-2 bg-[#1A1A24] rounded-lg">
+                                        <p className="text-[10px] text-[#71717A]">Preservación</p>
+                                        <p className="text-xs text-white">
+                                          {PRESERVATION_CONFIG[versionDetail.preservation]?.label ??
+                                            versionDetail.preservation}
+                                        </p>
+                                      </div>
+                                    )}
+                                    {versionDetail.subcategory && (
+                                      <div className="p-2 bg-[#1A1A24] rounded-lg">
+                                        <p className="text-[10px] text-[#71717A]">Subcategoría</p>
+                                        <p className="text-xs text-white">
+                                          {formatSubcategory(versionDetail.subcategory)}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                {versionDetail.metadata &&
+                                  Object.keys(versionDetail.metadata).length > 0 && (
+                                    <div className="grid grid-cols-2 gap-2">
+                                      {Object.entries(versionDetail.metadata).map(
+                                        ([key, value]) =>
+                                          value ? (
+                                            <div key={key} className="p-2 bg-[#1A1A24] rounded-lg">
+                                              <p className="text-[10px] text-[#71717A] capitalize">
+                                                {key}
+                                              </p>
+                                              <p className="text-xs text-white capitalize">
+                                                {String(value)}
+                                              </p>
+                                            </div>
+                                          ) : null
+                                      )}
+                                    </div>
+                                  )}
+
+                                {versionDetail.tags?.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {versionDetail.tags.map((tagName) => (
+                                      <span key={tagName} className="tag-pill text-xs">
+                                        #{tagName}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-sm text-[#71717A] text-center py-4">
+                                No se pudo cargar la versión
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Footer Info */}
               <div className="pt-4 border-t border-[#2A2A3A] text-xs text-[#71717A]">
