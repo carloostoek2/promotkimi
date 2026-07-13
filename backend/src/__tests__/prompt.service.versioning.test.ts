@@ -27,6 +27,8 @@ import {
   updatePrompt,
   updatePromptImages,
   toggleFavorite,
+  updatePromptAnalysis,
+  markAnalysisFailed,
 } from '../services/prompt.service';
 
 const mockedPrisma = prisma as unknown as {
@@ -111,6 +113,56 @@ describe('prompt.service version capture hooks', () => {
     });
 
     await toggleFavorite('p1');
+
+    expect(versionService.maybeCapture).not.toHaveBeenCalled();
+  });
+
+  it('calls maybeCapture(ANALYSIS) after updatePromptAnalysis COMPLETE write', async () => {
+    mockedPrisma.promptTag.deleteMany.mockResolvedValue({ count: 0 });
+    mockedPrisma.prompt.update.mockResolvedValue({
+      id: 'p1',
+      title: 'Analyzed',
+      analysisStatus: 'COMPLETED',
+      analysisResult: { summary: 'ok' },
+      tags: [],
+    });
+    vi.mocked(versionService.maybeCapture).mockResolvedValue({ id: 'v4' } as never);
+
+    await updatePromptAnalysis('p1', {
+      title: 'Analyzed',
+      analysisResult: { summary: 'ok' },
+    });
+
+    expect(versionService.maybeCapture).toHaveBeenCalledWith('p1', 'ANALYSIS');
+  });
+
+  it('calls maybeCapture(ANALYSIS) when analysis completes with tags', async () => {
+    mockedPrisma.promptTag.deleteMany.mockResolvedValue({ count: 0 });
+    mockedPrisma.tag.upsert.mockResolvedValue({ id: 't1', name: 'ai-tag' });
+    mockedPrisma.prompt.update.mockResolvedValue({
+      id: 'p1',
+      analysisStatus: 'COMPLETED',
+      tags: [{ tag: { name: 'ai-tag' } }],
+    });
+    vi.mocked(versionService.maybeCapture).mockResolvedValue({ id: 'v5' } as never);
+
+    await updatePromptAnalysis('p1', {
+      title: 'With tags',
+      tags: ['ai-tag'],
+      analysisResult: { summary: 'tagged' },
+    });
+
+    expect(versionService.maybeCapture).toHaveBeenCalledWith('p1', 'ANALYSIS');
+  });
+
+  it('does not call maybeCapture on markAnalysisFailed status-only write', async () => {
+    mockedPrisma.prompt.update.mockResolvedValue({
+      id: 'p1',
+      analysisStatus: 'FAILED',
+      analysisResult: { error: 'boom' },
+    });
+
+    await markAnalysisFailed('p1', 'boom');
 
     expect(versionService.maybeCapture).not.toHaveBeenCalled();
   });

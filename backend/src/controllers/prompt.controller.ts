@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import * as promptService from '../services/prompt.service';
 import * as imageService from '../services/image.service';
+import * as versionService from '../services/version.service';
 import { queueAnalysis } from '../config/queue';
 import { Category, ImageIntent, ImageTarget, InputMode, Preservation } from '@prisma/client';
 import { validateIntentCategoryCoherence } from '../utils/intentValidation';
@@ -247,13 +248,14 @@ export async function deletePrompt(req: Request, res: Response) {
       });
     }
 
-    // Eliminar imágenes asociadas
-    if (prompt.imageUrl || prompt.thumbnailUrl) {
-      await imageService.deleteImages(prompt.imageUrl, prompt.thumbnailUrl);
-    }
+    // Collect all image URLs (live + versions) before cascade delete
+    const imageUrls = await versionService.collectImageUrlsForPrompt(id);
 
-    // Eliminar prompt
+    // Delete prompt (cascades versions)
     await promptService.deletePrompt(id);
+
+    // Unlink collected files (no remaining DB refs after cascade)
+    await versionService.safeDeleteImages(imageUrls);
 
     return res.json({
       success: true,
@@ -310,20 +312,21 @@ export async function updatePromptImage(req: Request, res: Response) {
       });
     }
 
-    // Eliminar imágenes anteriores
-    if (prompt.imageUrl || prompt.thumbnailUrl) {
-      await imageService.deleteImages(prompt.imageUrl, prompt.thumbnailUrl);
-    }
+    const oldImageUrl = prompt.imageUrl;
+    const oldThumbnailUrl = prompt.thumbnailUrl;
 
     // Procesar nueva imagen
     const processedImage = await imageService.processImage(req.file);
 
-    // Actualizar prompt
+    // Actualizar prompt (captures IMAGE version when URLs change)
     const updatedPrompt = await promptService.updatePromptImages(
       id,
       processedImage.originalUrl,
       processedImage.thumbnailUrl
     );
+
+    // GC old URLs only if no live Prompt or PromptVersion still references them
+    await versionService.safeDeleteImages([oldImageUrl, oldThumbnailUrl]);
 
     return res.json({
       success: true,

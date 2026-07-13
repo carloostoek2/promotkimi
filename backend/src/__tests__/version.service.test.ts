@@ -5,6 +5,7 @@ import {
   maybeCapture,
   listVersions,
   getVersion,
+  restoreVersion,
   type VersionSnapshot,
 } from '../services/version.service';
 
@@ -12,12 +13,19 @@ vi.mock('../config/database', () => ({
   default: {
     prompt: {
       findUnique: vi.fn(),
+      update: vi.fn(),
     },
     promptVersion: {
       findFirst: vi.fn(),
       findMany: vi.fn(),
       findUnique: vi.fn(),
       create: vi.fn(),
+    },
+    promptTag: {
+      deleteMany: vi.fn(),
+    },
+    tag: {
+      upsert: vi.fn(),
     },
     $transaction: vi.fn(),
   },
@@ -26,13 +34,18 @@ vi.mock('../config/database', () => ({
 import prisma from '../config/database';
 
 const mockedPrisma = prisma as unknown as {
-  prompt: { findUnique: ReturnType<typeof vi.fn> };
+  prompt: {
+    findUnique: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+  };
   promptVersion: {
     findFirst: ReturnType<typeof vi.fn>;
     findMany: ReturnType<typeof vi.fn>;
     findUnique: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
   };
+  promptTag: { deleteMany: ReturnType<typeof vi.fn> };
+  tag: { upsert: ReturnType<typeof vi.fn> };
   $transaction: ReturnType<typeof vi.fn>;
 };
 
@@ -410,5 +423,203 @@ describe('getVersion', () => {
     const result = await getVersion('p1', 99);
 
     expect(result).toBeNull();
+  });
+});
+
+describe('restoreVersion', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const version2Snapshot = {
+    id: 'ver-2',
+    promptId: 'p1',
+    version: 2,
+    changeReason: 'UPDATE',
+    title: 'Restored title',
+    description: 'Restored desc',
+    content: 'Restored content',
+    category: 'IMAGEN',
+    subcategory: 'old-sub',
+    intent: 'GENERAR',
+    targets: ['ROSTRO'],
+    inputMode: 'TEXTO_A_IMAGEN',
+    preservation: 'IDENTIDAD',
+    metadata: { model: 'old' },
+    tags: ['alpha', 'beta'],
+    imageUrl: '/uploads/v2.webp',
+    thumbnailUrl: '/uploads/v2-thumb.webp',
+    analysisResult: { summary: 'from v2' },
+    createdAt: new Date('2026-01-02'),
+  };
+
+  const liveAfterRestore = {
+    id: 'p1',
+    title: 'Restored title',
+    description: 'Restored desc',
+    content: 'Restored content',
+    category: 'IMAGEN',
+    subcategory: 'old-sub',
+    intent: 'GENERAR',
+    targets: ['ROSTRO'],
+    inputMode: 'TEXTO_A_IMAGEN',
+    preservation: 'IDENTIDAD',
+    metadata: { model: 'old' },
+    imageUrl: '/uploads/v2.webp',
+    thumbnailUrl: '/uploads/v2-thumb.webp',
+    analysisResult: { summary: 'from v2' },
+    isFavorite: true,
+    analysisStatus: 'PROCESSING',
+    tags: [
+      { tag: { id: 't1', name: 'alpha' } },
+      { tag: { id: 't2', name: 'beta' } },
+    ],
+  };
+
+  it('applies snapshot fields+tags+images, preserves favorite/status, appends RESTORE', async () => {
+    mockedPrisma.promptVersion.findUnique.mockResolvedValue(version2Snapshot);
+    mockedPrisma.prompt.findUnique.mockResolvedValue({
+      id: 'p1',
+      isFavorite: true,
+      analysisStatus: 'PROCESSING',
+    });
+
+    let updateData: Record<string, unknown> | undefined;
+    let restoreCreateData: Record<string, unknown> | undefined;
+    let deletedTags = false;
+    const upsertedTags: string[] = [];
+
+    mockedPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+      const tx = {
+        promptTag: {
+          deleteMany: vi.fn().mockImplementation(() => {
+            deletedTags = true;
+            return Promise.resolve({ count: 1 });
+          }),
+        },
+        tag: {
+          upsert: vi.fn().mockImplementation((args: { create: { name: string }; where: { normalizedName: string } }) => {
+            upsertedTags.push(args.create.name);
+            return Promise.resolve({ id: `tag-${args.create.name}`, name: args.create.name });
+          }),
+        },
+        prompt: {
+          update: vi.fn().mockImplementation((args: { data: Record<string, unknown> }) => {
+            updateData = args.data;
+            return Promise.resolve(liveAfterRestore);
+          }),
+          findUnique: vi.fn().mockResolvedValue(liveAfterRestore),
+        },
+        promptVersion: {
+          findFirst: vi.fn().mockResolvedValue({
+            ...version2Snapshot,
+            version: 5,
+            content: 'Current head content',
+            tags: ['current'],
+          }),
+          create: vi.fn().mockImplementation((args: { data: Record<string, unknown> }) => {
+            restoreCreateData = args.data;
+            return Promise.resolve({ id: 'v6', ...args.data });
+          }),
+        },
+      };
+      return fn(tx);
+    });
+
+    const result = await restoreVersion('p1', 2);
+
+    expect(deletedTags).toBe(true);
+    expect(upsertedTags.sort()).toEqual(['alpha', 'beta']);
+    expect(updateData).toMatchObject({
+      title: 'Restored title',
+      description: 'Restored desc',
+      content: 'Restored content',
+      category: 'IMAGEN',
+      subcategory: 'old-sub',
+      intent: 'GENERAR',
+      targets: ['ROSTRO'],
+      inputMode: 'TEXTO_A_IMAGEN',
+      preservation: 'IDENTIDAD',
+      imageUrl: '/uploads/v2.webp',
+      thumbnailUrl: '/uploads/v2-thumb.webp',
+    });
+    // Must NOT touch favorite or analysis status
+    expect(updateData).not.toHaveProperty('isFavorite');
+    expect(updateData).not.toHaveProperty('analysisStatus');
+
+    expect(restoreCreateData).toMatchObject({
+      promptId: 'p1',
+      version: 6,
+      changeReason: 'RESTORE',
+      content: 'Restored content',
+      title: 'Restored title',
+    });
+    expect(result).toMatchObject({
+      id: 'p1',
+      content: 'Restored content',
+      isFavorite: true,
+      analysisStatus: 'PROCESSING',
+    });
+  });
+
+  it('force-appends RESTORE even when restored snapshot equals latest version', async () => {
+    // Restoring latest version: after apply, live equals latest — must still insert RESTORE
+    mockedPrisma.promptVersion.findUnique.mockResolvedValue(version2Snapshot);
+    mockedPrisma.prompt.findUnique.mockResolvedValue({ id: 'p1' });
+
+    let createCalled = false;
+    mockedPrisma.$transaction.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
+      const tx = {
+        promptTag: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
+        tag: {
+          upsert: vi.fn().mockImplementation((args: { create: { name: string } }) =>
+            Promise.resolve({ id: args.create.name, name: args.create.name })
+          ),
+        },
+        prompt: {
+          update: vi.fn().mockResolvedValue(liveAfterRestore),
+          findUnique: vi.fn().mockResolvedValue(liveAfterRestore),
+        },
+        promptVersion: {
+          findFirst: vi.fn().mockResolvedValue({
+            ...version2Snapshot,
+            version: 2,
+            // equal to restored live snapshot
+            tags: ['alpha', 'beta'],
+          }),
+          create: vi.fn().mockImplementation((args: { data: Record<string, unknown> }) => {
+            createCalled = true;
+            expect(args.data.changeReason).toBe('RESTORE');
+            expect(args.data.version).toBe(3);
+            return Promise.resolve({ id: 'v3', ...args.data });
+          }),
+        },
+      };
+      return fn(tx);
+    });
+
+    await restoreVersion('p1', 2);
+
+    expect(createCalled).toBe(true);
+  });
+
+  it('throws not-found when version is missing', async () => {
+    mockedPrisma.promptVersion.findUnique.mockResolvedValue(null);
+    mockedPrisma.prompt.findUnique.mockResolvedValue({ id: 'p1' });
+
+    await expect(restoreVersion('p1', 99)).rejects.toThrow(/versión|version/i);
+    expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('throws not-found when prompt is missing', async () => {
+    mockedPrisma.promptVersion.findUnique.mockResolvedValue(null);
+    mockedPrisma.prompt.findUnique.mockResolvedValue(null);
+
+    await expect(restoreVersion('missing', 1)).rejects.toThrow(/prompt|no encontrado/i);
+    expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
   });
 });

@@ -232,7 +232,7 @@ export async function updatePromptAnalysis(
 
     const createdTags = await Promise.all(tagOperations);
 
-    return prisma.prompt.update({
+    const updated = await prisma.prompt.update({
       where: { id },
       data: {
         ...data,
@@ -251,9 +251,12 @@ export async function updatePromptAnalysis(
         }
       }
     });
+
+    await maybeCapture(id, 'ANALYSIS');
+    return updated;
   }
 
-  return prisma.prompt.update({
+  const updated = await prisma.prompt.update({
     where: { id },
     data: {
       ...data,
@@ -267,6 +270,9 @@ export async function updatePromptAnalysis(
       }
     }
   });
+
+  await maybeCapture(id, 'ANALYSIS');
+  return updated;
 }
 
 export async function markAnalysisFailed(id: string, errorMessage: string) {
