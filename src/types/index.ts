@@ -59,6 +59,49 @@ export interface Prompt {
   tags: PromptTag[];
 }
 
+// ==================== VERSION TYPES ====================
+
+export type VersionChangeReason =
+  | 'CREATE'
+  | 'UPDATE'
+  | 'IMAGE'
+  | 'ANALYSIS'
+  | 'RESTORE';
+
+export interface VersionSummary {
+  version: number;
+  createdAt: string;
+  changeReason: VersionChangeReason;
+  title: string | null;
+}
+
+export interface PromptVersionDetail extends VersionSummary {
+  description: string | null;
+  content: string;
+  category: Category | null;
+  subcategory: string | null;
+  intent: ImageIntent | null;
+  targets: ImageTarget[];
+  inputMode: InputMode | null;
+  preservation: Preservation | null;
+  metadata: Record<string, unknown> | null;
+  tags: string[];
+  imageUrl: string | null;
+  thumbnailUrl: string | null;
+  analysisResult: Record<string, unknown> | null;
+}
+
+export const VERSION_CHANGE_REASON_CONFIG: Record<
+  VersionChangeReason,
+  { label: string }
+> = {
+  CREATE: { label: 'Creación' },
+  UPDATE: { label: 'Edición' },
+  IMAGE: { label: 'Imagen' },
+  ANALYSIS: { label: 'Análisis' },
+  RESTORE: { label: 'Restauración' },
+};
+
 // ==================== API TYPES ====================
 
 export interface ApiResponse<T> {
