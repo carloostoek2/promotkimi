@@ -26,7 +26,7 @@ import {
 } from '@/types';
 import type { Flow, PromptVersionDetail, VersionSummary } from '@/types';
 import * as api from '@/services/api';
-import { diffLines, hasDiffChanges, type DiffOp } from '@/lib/textDiff';
+import { diffWords, hasDiffChanges, type DiffOp } from '@/lib/textDiff';
 
 const SWIPE_THRESHOLD = 50;
 
@@ -887,7 +887,7 @@ function VersionContentBlock({
   previousContent: string | null;
 }) {
   const ops: DiffOp[] | null =
-    previousContent != null ? diffLines(previousContent, content) : null;
+    previousContent != null ? diffWords(previousContent, content) : null;
   const showDiff = ops != null && hasDiffChanges(ops);
 
   return (
@@ -902,25 +902,31 @@ function VersionContentBlock({
           </span>
         </p>
       )}
-      <div className="text-xs text-white font-mono whitespace-pre-wrap max-h-40 overflow-y-auto select-text">
+      <div className="text-xs text-white font-mono whitespace-pre-wrap max-h-40 overflow-y-auto select-text leading-relaxed">
         {showDiff && ops
-          ? ops.map((op, index) => (
-              <div
-                key={`${op.type}-${index}`}
-                className={
-                  op.type === 'add'
-                    ? 'bg-emerald-500/15 text-emerald-300 border-l-2 border-emerald-500/70 pl-2 -ml-0.5'
-                    : op.type === 'remove'
-                      ? 'bg-red-500/15 text-red-300/90 border-l-2 border-red-500/60 pl-2 -ml-0.5'
-                      : 'text-white'
-                }
-              >
-                <span className="inline-block w-3 shrink-0 opacity-70 select-none" aria-hidden>
-                  {op.type === 'add' ? '+' : op.type === 'remove' ? '−' : ' '}
+          ? ops.map((op, index) => {
+              if (op.type === 'equal') {
+                return <span key={index}>{op.text}</span>;
+              }
+              if (op.type === 'add') {
+                return (
+                  <span
+                    key={index}
+                    className="rounded-sm bg-emerald-500/20 text-emerald-300 px-0.5"
+                  >
+                    {op.text}
+                  </span>
+                );
+              }
+              return (
+                <span
+                  key={index}
+                  className="rounded-sm bg-red-500/20 text-red-300/90 line-through decoration-red-400/70 px-0.5"
+                >
+                  {op.text}
                 </span>
-                {op.line || '\u00A0'}
-              </div>
-            ))
+              );
+            })
           : content}
       </div>
     </div>

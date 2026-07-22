@@ -1,5 +1,5 @@
 /**
- * Line-based unified diff via LCS.
+ * Word-level (and line-level) unified diff via LCS.
  * Pure helpers for version history preview.
  */
 
@@ -7,7 +7,17 @@ export type DiffOpType = 'equal' | 'add' | 'remove';
 
 export interface DiffOp {
   type: DiffOpType;
-  line: string;
+  /** Token or merged run of tokens */
+  text: string;
+}
+
+/**
+ * Split into words and whitespace so inline edits stay granular
+ * while newlines/spaces are preserved for layout.
+ */
+export function tokenizeWords(text: string): string[] {
+  if (text === '') return [];
+  return text.match(/\S+|\s+/g) ?? [];
 }
 
 /** Split on newlines; keep empty trailing/leading lines consistent with String.split. */
@@ -17,7 +27,7 @@ export function splitLines(text: string): string[] {
 }
 
 /**
- * Longest common subsequence indices for two string arrays (line tokens).
+ * Longest common subsequence DP for two string arrays.
  * O(n*m) time/space — fine for prompt-sized texts.
  */
 function lcsTable(a: string[], b: string[]): number[][] {
@@ -40,42 +50,65 @@ function lcsTable(a: string[], b: string[]): number[][] {
   return dp;
 }
 
-/**
- * Build unified line ops transforming `before` → `after`.
- * - remove: present only in before
- * - add: present only in after
- * - equal: unchanged lines
- */
-export function diffLines(before: string, after: string): DiffOp[] {
-  const a = splitLines(before);
-  const b = splitLines(after);
-  const dp = lcsTable(a, b);
+/** Merge consecutive ops of the same type into one run (cleaner render / copy). */
+export function mergeOps(ops: DiffOp[]): DiffOp[] {
+  const out: DiffOp[] = [];
+  for (const op of ops) {
+    const last = out[out.length - 1];
+    if (last && last.type === op.type) {
+      last.text += op.text;
+    } else {
+      out.push({ type: op.type, text: op.text });
+    }
+  }
+  return out;
+}
 
-  const ops: DiffOp[] = [];
+function diffTokens(a: string[], b: string[]): DiffOp[] {
+  const dp = lcsTable(a, b);
+  const reverse: DiffOp[] = [];
   let i = a.length;
   let j = b.length;
 
-  // Walk back from bottom-right collecting reverse ops
-  const reverse: DiffOp[] = [];
   while (i > 0 || j > 0) {
     if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
-      reverse.push({ type: 'equal', line: a[i - 1] });
+      reverse.push({ type: 'equal', text: a[i - 1] });
       i--;
       j--;
     } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      reverse.push({ type: 'add', line: b[j - 1] });
+      reverse.push({ type: 'add', text: b[j - 1] });
       j--;
     } else if (i > 0) {
-      reverse.push({ type: 'remove', line: a[i - 1] });
+      reverse.push({ type: 'remove', text: a[i - 1] });
       i--;
     }
   }
 
+  const ops: DiffOp[] = [];
   for (let k = reverse.length - 1; k >= 0; k--) {
     ops.push(reverse[k]);
   }
+  return mergeOps(ops);
+}
 
-  return ops;
+/**
+ * Word-level unified ops transforming `before` → `after`.
+ * Prefer this for prompt edits (usually a few words, not whole lines).
+ */
+export function diffWords(before: string, after: string): DiffOp[] {
+  return diffTokens(tokenizeWords(before), tokenizeWords(after));
+}
+
+/**
+ * Line-level unified ops (kept for coarse comparisons / tests).
+ * Each line token keeps its trailing newline so merges stay readable.
+ */
+export function diffLines(before: string, after: string): DiffOp[] {
+  const toLineTokens = (text: string): string[] => {
+    const lines = splitLines(text);
+    return lines.map((line, i) => (i < lines.length - 1 ? `${line}\n` : line));
+  };
+  return diffTokens(toLineTokens(before), toLineTokens(after));
 }
 
 /** True when there is at least one add or remove. */
