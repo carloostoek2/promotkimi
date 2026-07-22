@@ -26,6 +26,7 @@ import {
 } from '@/types';
 import type { Flow, PromptVersionDetail, VersionSummary } from '@/types';
 import * as api from '@/services/api';
+import { diffLines, hasDiffChanges, type DiffOp } from '@/lib/textDiff';
 
 const SWIPE_THRESHOLD = 50;
 
@@ -65,6 +66,8 @@ export function DetailModal() {
   const [selectedVersionNumber, setSelectedVersionNumber] = useState<number | null>(null);
   const [versionDetail, setVersionDetail] = useState<PromptVersionDetail | null>(null);
   const [versionDetailLoading, setVersionDetailLoading] = useState(false);
+  /** Content of the immediately older version (for line diff). Null when none. */
+  const [previousVersionContent, setPreviousVersionContent] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
 
   const loadVersions = useCallback(async (promptId: string) => {
@@ -91,6 +94,7 @@ export function DetailModal() {
       setHistoryOpen(false);
       setSelectedVersionNumber(null);
       setVersionDetail(null);
+      setPreviousVersionContent(null);
       setVersionsError(null);
       void loadVersions(selectedPromptId);
     } else {
@@ -98,6 +102,7 @@ export function DetailModal() {
       setVersions([]);
       setSelectedVersionNumber(null);
       setVersionDetail(null);
+      setPreviousVersionContent(null);
       setHistoryOpen(false);
       setVersionsError(null);
     }
@@ -109,16 +114,36 @@ export function DetailModal() {
       // Toggle off preview
       setSelectedVersionNumber(null);
       setVersionDetail(null);
+      setPreviousVersionContent(null);
       return;
     }
 
     setSelectedVersionNumber(version);
     setVersionDetailLoading(true);
+    setPreviousVersionContent(null);
     try {
       const detail = await api.getPromptVersion(selectedPromptId, version);
       setVersionDetail(detail);
+
+      // Immediately older version in the timeline (max version < selected)
+      const older = versions
+        .filter((v) => v.version < version)
+        .sort((a, b) => b.version - a.version)[0];
+
+      if (older) {
+        try {
+          const prev = await api.getPromptVersion(selectedPromptId, older.version);
+          setPreviousVersionContent(prev.content);
+        } catch {
+          // Diff is optional — preview still works without previous snapshot
+          setPreviousVersionContent(null);
+        }
+      } else {
+        setPreviousVersionContent(null);
+      }
     } catch (error) {
       setVersionDetail(null);
+      setPreviousVersionContent(null);
       showError(
         error instanceof Error ? error.message : 'Error cargando versión'
       );
@@ -148,6 +173,7 @@ export function DetailModal() {
       showSuccess('Versión restaurada exitosamente');
       setSelectedVersionNumber(null);
       setVersionDetail(null);
+      setPreviousVersionContent(null);
       await loadVersions(selectedPromptId);
     } catch (error) {
       removeToast(toastId);
@@ -242,6 +268,12 @@ export function DetailModal() {
       navigator.clipboard.writeText(selectedPrompt.content);
       showSuccess('Prompt copiado al portapapeles');
     }
+  };
+
+  const handleCopyVersion = () => {
+    if (!versionDetail) return;
+    navigator.clipboard.writeText(versionDetail.content);
+    showSuccess('Versión copiada al portapapeles');
   };
 
   const handleFavorite = () => {
@@ -339,7 +371,7 @@ export function DetailModal() {
       )}
 
       <div
-        className="modal-content animate-modal-enter max-w-2xl select-none flex flex-col max-h-[90vh]"
+        className="modal-content animate-modal-enter max-w-2xl flex flex-col max-h-[90vh]"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -645,22 +677,37 @@ export function DetailModal() {
                               <h4 className="text-xs font-medium text-[#71717A] uppercase tracking-wider">
                                 Vista previa · v{selectedVersionNumber}
                               </h4>
-                              <button
-                                type="button"
-                                onClick={() => void handleRestoreVersion()}
-                                disabled={restoring || versionDetailLoading || !versionDetail}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
-                                           bg-[#8B5CF6]/15 text-[#C4B5FD] border border-[#8B5CF6]/40
-                                           hover:bg-[#8B5CF6]/25 disabled:opacity-50 disabled:cursor-not-allowed
-                                           transition-colors"
-                              >
-                                {restoring ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                ) : (
-                                  <RotateCcw className="w-3.5 h-3.5" />
-                                )}
-                                Restaurar
-                              </button>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={handleCopyVersion}
+                                  disabled={versionDetailLoading || !versionDetail}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+                                             bg-[#1A1A24] text-[#A1A1AA] border border-[#2A2A3A]
+                                             hover:text-white hover:border-[#3A3A4A]
+                                             disabled:opacity-50 disabled:cursor-not-allowed
+                                             transition-colors"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                  Copiar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleRestoreVersion()}
+                                  disabled={restoring || versionDetailLoading || !versionDetail}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium
+                                             bg-[#8B5CF6]/15 text-[#C4B5FD] border border-[#8B5CF6]/40
+                                             hover:bg-[#8B5CF6]/25 disabled:opacity-50 disabled:cursor-not-allowed
+                                             transition-colors"
+                                >
+                                  {restoring ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                  )}
+                                  Restaurar
+                                </button>
+                              </div>
                             </div>
 
                             {versionDetailLoading ? (
@@ -702,11 +749,10 @@ export function DetailModal() {
                                   )}
                                 </div>
 
-                                <div className="p-3 bg-[#1A1A24] rounded-lg">
-                                  <p className="text-xs text-white font-mono whitespace-pre-wrap max-h-40 overflow-y-auto">
-                                    {versionDetail.content}
-                                  </p>
-                                </div>
+                                <VersionContentBlock
+                                  content={versionDetail.content}
+                                  previousContent={previousVersionContent}
+                                />
 
                                 {(previewIntentConfig ||
                                   versionDetail.targets?.length > 0 ||
@@ -828,6 +874,54 @@ export function DetailModal() {
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function VersionContentBlock({
+  content,
+  previousContent,
+}: {
+  content: string;
+  previousContent: string | null;
+}) {
+  const ops: DiffOp[] | null =
+    previousContent != null ? diffLines(previousContent, content) : null;
+  const showDiff = ops != null && hasDiffChanges(ops);
+
+  return (
+    <div className="p-3 bg-[#1A1A24] rounded-lg select-text">
+      {showDiff && (
+        <p className="mb-2 text-[10px] text-[#52525B] uppercase tracking-wider">
+          Cambios vs versión anterior
+          <span className="ml-2 normal-case tracking-normal">
+            <span className="text-emerald-400/90">+ añadido</span>
+            <span className="mx-1 text-[#3A3A4A]">·</span>
+            <span className="text-red-400/90">− quitado</span>
+          </span>
+        </p>
+      )}
+      <div className="text-xs text-white font-mono whitespace-pre-wrap max-h-40 overflow-y-auto select-text">
+        {showDiff && ops
+          ? ops.map((op, index) => (
+              <div
+                key={`${op.type}-${index}`}
+                className={
+                  op.type === 'add'
+                    ? 'bg-emerald-500/15 text-emerald-300 border-l-2 border-emerald-500/70 pl-2 -ml-0.5'
+                    : op.type === 'remove'
+                      ? 'bg-red-500/15 text-red-300/90 border-l-2 border-red-500/60 pl-2 -ml-0.5'
+                      : 'text-white'
+                }
+              >
+                <span className="inline-block w-3 shrink-0 opacity-70 select-none" aria-hidden>
+                  {op.type === 'add' ? '+' : op.type === 'remove' ? '−' : ' '}
+                </span>
+                {op.line || '\u00A0'}
+              </div>
+            ))
+          : content}
       </div>
     </div>
   );
