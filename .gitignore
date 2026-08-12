@@ -12,3 +12,6 @@ Thumbs.db
 *~
 .vscode/
 .idea/
+
+# Artefactos locales de herramientas
+.atl/
